@@ -94,6 +94,7 @@ make dev     # start the dev server at http://127.0.0.1:8787
 | `make eval` | Quality eval: entity and number accuracy, glossary compliance, clarifications, COMET if configured |
 | `make redteam` | Prompt-injection, PII and context-leak checks on the prompts actually sent to the model |
 | `make golden` | Regenerate `eval/datasets/golden.*.jsonl` from `eval/golden/*.json` |
+| `make benchmark` | Score the golden set per hard-case type: chrF++, RAGAS-style metrics, LLM judge (MQM), latency |
 
 The dev server address can be changed with `XT_DEV_ADDR` (default `127.0.0.1:8787`).
 
@@ -158,6 +159,31 @@ PYTHONPATH=python .venv/bin/python -m xt_eval.eval --cli target/debug/xt-cli --d
   to match the code.
 - Set `XT_COMET_CMD` to a command that reads `{src, mt, ref}` JSONL on stdin and prints a score
   to enable the COMET gate (target ≥ 0.85).
+
+## Benchmark
+
+```sh
+make benchmark                                    # model from XT_MODELS_CONFIG (.env)
+make benchmark XT_MODELS_CONFIG=config/models.toml   # mock provider: mechanics only
+```
+
+Scores the golden set (single messages plus multi-turn dialogues whose last message needs
+earlier turns) and writes `eval/reports/benchmark-<label>.{json,md}`, overall and per
+hard-case type. Reports hold numbers and case ids only, no text.
+
+| Group | Metrics |
+| --- | --- |
+| Reference-based | chrF++ (identical to sacreBLEU 2.x `CHRF(word_order=2)`), glossary compliance, entity/number accuracy, deterministic severe errors per 100 messages, clarification accuracy |
+| Retrieval (RAGAS-style) | Glossary context precision (rank-aware) and recall, read from the prompt actually sent; thread context recall: are the turns needed for a correct translation inside the context window |
+| LLM judge | Faithfulness (share of atomic information units supported by the source), answer correctness (0–100), MQM errors (minor / major / critical) |
+| Latency | TTFT and full-translation p50 / p95 from telemetry |
+
+The RAGAS-style metrics are implemented in `python/xt_eval/metrics.py` rather than with the
+`ragas` library, so that every model call goes through `crates/model-router`. The judge runs on
+the strong tier of the same config (`xt-cli --judge`, prompt in
+`crates/prompts/templates/judge.txt`), so judge scores carry self-judging bias. With the mock
+provider the judge is skipped. Extra flags go through `BENCH_ARGS`, e.g.
+`make benchmark BENCH_ARGS="--no-judge --label quick"`.
 
 ## Glossary and review
 

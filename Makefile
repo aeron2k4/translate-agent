@@ -13,7 +13,7 @@ WEB   := apps/chat-playground
 # Chat playground là JS thuần, không dependency; máy không có node thì bỏ qua.
 HAS_NODE := $(shell command -v $(NODE) 2>/dev/null)
 
-.PHONY: venv dev test lint fmt eval redteam cli golden
+.PHONY: venv dev test lint fmt eval redteam cli golden benchmark
 
 ## make venv: tạo .venv và cài công cụ dev Python (pytest, ruff)
 venv: $(VENV)/.installed
@@ -64,6 +64,10 @@ eval: venv cli
 ## make redteam: prompt injection, PII, rò rỉ ngữ cảnh/log
 redteam: venv cli
 	cd python && $(PY) -m xt_eval.redteam --cli $(abspath target/debug/xt-cli)
+
+## make benchmark: chấm golden dataset theo loại ca khó (chrF++, RAGAS, LLM chấm, độ trễ)
+benchmark: venv cli
+	cd python && $(PY) -m xt_eval.benchmark --cli $(abspath target/debug/xt-cli) $(BENCH_ARGS)
 
 ## make golden: sinh lại eval/datasets/golden.*.jsonl từ mẫu viết tay trong eval/golden/
 golden: venv
