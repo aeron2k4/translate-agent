@@ -1,0 +1,10 @@
+{
+  "name": "chat-playground",
+  "private": true,
+  "type": "module",
+  "description": "Giao diện chat test trực quan cho devserver. Không có dependency.",
+  "scripts": {
+    "test": "node --test test/",
+    "check": "for f in js/*.js test/*.js; do node --check \"$f\" || exit 1; done"
+  }
+}

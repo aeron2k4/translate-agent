@@ -9,33 +9,22 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <strong>X Translate</strong> <span class="muted">chat playground</span>
-      <span class="pill warn" id="env-pill" title="Chỉ dùng dữ liệu tổng hợp">mock enclave · chỉ dev</span>
+      <span class="brand-mark">X</span>
+      <strong>Translate</strong>
+      <span class="muted">playground</span>
     </div>
-    <div class="toolbar">
-      <span class="muted">Luồng: <code id="thread-id"></code></span>
-      <label class="toggle"><input type="checkbox" id="opt-e2e"> Mã hoá E2E (mock enclave)</label>
-      <label class="toggle"><input type="checkbox" id="opt-internal"> Hội thoại cấm gửi ra ngoài</label>
-      <button id="btn-add">+ Thêm người</button>
-      <button id="btn-close">Đóng phiên</button>
-      <button id="btn-new">Phiên mới</button>
+    <div class="topbar-right">
+      <span class="pill" id="env-pill" title="Mô hình đang dùng">…</span>
+      <button class="btn" id="btn-tools">Công cụ</button>
     </div>
   </header>
 
-  <section class="samples">
-    <label for="sample-select">Tin mẫu (golden):</label>
-    <select id="sample-select"><option value="">— chọn để chèn vào ô soạn tin —</option></select>
-  </section>
-
-  <main class="layout">
-    <div id="columns" class="columns"></div>
-    <aside id="inspector" class="inspector">
-      <h2>Inspector</h2>
-      <p class="muted">Bấm vào một tin để xem văn bản sau khi che thực thể, quyết định lọc và response.</p>
-    </aside>
-  </main>
+  <div class="workspace">
+    <main id="stage" class="stage" aria-label="Các máy tham gia hội thoại"></main>
+    <aside id="dev" class="dev" aria-label="Công cụ dev"></aside>
+  </div>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
-  <script src="/static/app.js"></script>
+  <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

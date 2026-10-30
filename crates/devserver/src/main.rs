@@ -15,7 +15,7 @@
 //! - POST /v1/threads/{thread}/members/{member}/leave
 //!
 //! Chat playground (giao diện test trực quan, `apps/chat-playground/`):
-//! - GET  /  và  /static/{file}     (đọc từ đĩa mỗi lần, sửa xong chỉ cần reload)
+//! - GET  /  và  /static/{*path}    (đọc từ đĩa mỗi lần, sửa xong chỉ cần reload)
 //! - GET  /v1/i18n/{locale}
 //! - POST /v1/dev/filter            (mô phỏng bước 1 chạy trên client)
 //! - POST /v1/dev/inspect           (xem tin sau khi che thực thể)
@@ -163,21 +163,35 @@ async fn leave(
     StatusCode::NO_CONTENT
 }
 
-/// File tĩnh được phép phục vụ (không nhận đường dẫn tuỳ ý).
-const PLAYGROUND_FILES: &[(&str, &str)] = &[
-    ("index.html", "text/html; charset=utf-8"),
-    ("app.js", "text/javascript; charset=utf-8"),
-    ("style.css", "text/css; charset=utf-8"),
-];
+/// Kiểu nội dung của file tĩnh được phép phục vụ; `None` nếu không được phép.
+/// Chỉ nhận `index.html`, `style.css` và `js/<tên>.js` với tên gồm a-z, 0-9, `-`,
+/// nên không thể thoát ra ngoài `apps/chat-playground/`.
+fn playground_mime(path: &str) -> Option<&'static str> {
+    let module = |name: &str| {
+        !name.is_empty()
+            && name
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    };
+    match path {
+        "index.html" => Some("text/html; charset=utf-8"),
+        "style.css" => Some("text/css; charset=utf-8"),
+        _ => path
+            .strip_prefix("js/")
+            .and_then(|f| f.strip_suffix(".js"))
+            .filter(|name| module(name))
+            .map(|_| "text/javascript; charset=utf-8"),
+    }
+}
 
 async fn serve_file(state: &AppState, name: &str) -> Response {
-    let Some((file, mime)) = PLAYGROUND_FILES.iter().find(|(f, _)| *f == name) else {
+    let Some(mime) = playground_mime(name) else {
         return error(StatusCode::NOT_FOUND, "not_found");
     };
-    let path = state.repo.join("apps/chat-playground").join(file);
+    let path = state.repo.join("apps/chat-playground").join(name);
     match tokio::fs::read(path).await {
         Ok(bytes) => (
-            [("content-type", *mime), ("cache-control", "no-store")],
+            [("content-type", mime), ("cache-control", "no-store")],
             bytes,
         )
             .into_response(),
@@ -272,7 +286,7 @@ async fn dev_models(State(state): State<Shared>) -> Response {
 fn app(state: Shared) -> Router {
     Router::new()
         .route("/", get(index))
-        .route("/static/{file}", get(static_file))
+        .route("/static/{*path}", get(static_file))
         .route("/v1/i18n/{locale}", get(i18n))
         .route("/v1/dev/filter", post(dev_filter))
         .route("/v1/dev/inspect", post(dev_inspect))
@@ -487,11 +501,27 @@ mod tests {
         let (app, _) = test_app();
         let (status, body) = get(app.clone(), "/").await;
         assert_eq!(status, StatusCode::OK);
-        assert!(body.contains("/static/app.js"));
-        for file in ["app.js", "style.css"] {
+        assert!(body.contains("/static/js/main.js"));
+        for file in ["js/main.js", "style.css"] {
             let (status, body) = get(app.clone(), &format!("/static/{file}")).await;
             assert_eq!(status, StatusCode::OK, "{file}");
             assert!(!body.is_empty());
+        }
+    }
+
+    #[test]
+    fn playground_paths_are_whitelisted() {
+        assert!(playground_mime("js/main.js").is_some());
+        assert!(playground_mime("js/view-utils.js").is_some());
+        for bad in [
+            "js/.js",
+            "js/../x.js",
+            "js/a/b.js",
+            "js/a.mjs",
+            "app.js",
+            "/etc/passwd",
+        ] {
+            assert_eq!(playground_mime(bad), None, "{bad}");
         }
     }
 
@@ -502,6 +532,11 @@ mod tests {
             "/static/Cargo.toml",
             "/static/..%2F..%2FCargo.toml",
             "/static/..",
+            "/static/js/../../../Cargo.toml",
+            "/static/js/..%2F..%2F..%2FCargo.toml.js",
+            "/static/js/sub/main.js",
+            "/static/js/Main.js",
+            "/static/test/store.test.js",
         ] {
             assert_eq!(
                 get(app.clone(), uri).await.0,
