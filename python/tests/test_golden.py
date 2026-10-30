@@ -71,8 +71,49 @@ def test_generates_variants_with_independent_expectations() -> None:
     assert chat["text"] == "E muon lai thu luc 9h30."
     assert {"unaccented", "abbreviation"} <= set(chat["tags"])
     assert base["reference"] == "I'd like a test drive at 9:30."
-    assert base["expect"] == {"entities": ["9:30"], "glossary": ["test drive"]}
+    assert base["expect"] == {
+        "entities": ["9:30"],
+        "glossary": ["test drive"],
+        "glossary_ids": ["auto-001"],
+    }
     assert "address_forms" in base["tags"] and "unaccented" in unaccented["tags"]
+
+
+def dialogue_spec(needs: list[int]) -> dict:
+    return {
+        **spec("unused"),
+        "templates": [],
+        "speakers": {"customer": "vi", "advisor": "en"},
+        "dialogues": [
+            {
+                "id": "d1",
+                "tags": ["coreference"],
+                "history": [
+                    {"speaker": "customer", "text": "Chị muốn lái thử xe điện."},
+                    {"speaker": "advisor", "text": "Sure, which day?"},
+                ],
+                "speaker": "customer",
+                "text": "Thứ bảy nhé em.",
+                "reference": "Saturday, please.",
+                "needs": needs,
+            }
+        ],
+    }
+
+
+def test_dialogues_carry_history_sender_and_needed_turns() -> None:
+    rows = generate(dialogue_spec([1]), GLOSSARY)
+    assert [r["meta"]["variant"] for r in rows] == ["base", "unaccented"]
+    base = rows[0]
+    assert base["sender_id"] == "customer" and base["target_lang"] == "en"
+    assert base["history"][1] == {"sender_id": "advisor", "lang": "en", "text": "Sure, which day?"}
+    assert base["expect"]["context_needed"] == [1]
+    assert "context" in base["tags"]
+
+
+def test_dialogue_needs_must_point_to_history() -> None:
+    with pytest.raises(GoldenError, match="needs"):
+        generate(dialogue_spec([2]), GLOSSARY)
 
 
 def test_rejects_reference_that_breaks_the_glossary() -> None:

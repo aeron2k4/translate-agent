@@ -92,7 +92,7 @@ class Report:
 def to_request(case: dict) -> dict:
     return {
         "thread_id": f"eval-{case['id']}",
-        "sender_id": "eval-sender",
+        "sender_id": case.get("sender_id", "eval-sender"),
         "text": case["text"],
         "target_langs": [case["target_lang"]],
         "domain": case.get("domain", "automotive"),
@@ -183,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     cases = [c for f in sorted(args.dataset.glob("*.jsonl")) for c in cli.load_jsonl(f)]
-    results = cli.run(args.cli, ((c["id"], to_request(c)) for c in cases))
+    results = cli.run(args.cli, (cli.line(c["id"], to_request(c), c.get("history")) for c in cases))
     report = score(cases, results)
     report.comet = comet_score(cases, results)
     if args.dump:

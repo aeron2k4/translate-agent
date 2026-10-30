@@ -81,8 +81,13 @@ def main(argv: list[str] | None = None) -> int:
     cases = [c for f in sorted(args.cases.glob("*.jsonl")) for c in cli.load_jsonl(f)]
     with tempfile.TemporaryDirectory() as tmp:
         tel_path = Path(tmp) / "telemetry.jsonl"
+        # Prompt của provider giả là tất định; red team kiểm tra cách dựng prompt.
         rows = cli.run(
-            args.cli, ((c["id"], to_request(c)) for c in cases), audit=True, telemetry=tel_path
+            args.cli,
+            (cli.line(c["id"], to_request(c)) for c in cases),
+            audit=True,
+            telemetry=tel_path,
+            config=cli.MOCK_CONFIG,
         )
         telemetry = tel_path.read_text(encoding="utf-8")
 

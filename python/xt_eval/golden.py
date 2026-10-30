@@ -131,6 +131,7 @@ def generate(spec: dict, glossary: Glossary) -> list[dict]:
             if clarify:
                 entities: list[str] = []
                 glossary_terms: list[str] = []
+                glossary_ids: list[str] = []
             else:
                 entities = tpl.get("entities") or [values[n][tgt] for n in value_slots]
                 expected = _glossary_expectations(glossary, text, src, tgt)
@@ -143,6 +144,9 @@ def generate(spec: dict, glossary: Glossary) -> list[dict]:
                     if e not in reference:
                         raise GoldenError(f"{tpl['id']}: bản tham chiếu thiếu thực thể {e!r}")
                 glossary_terms = [target for _, target in expected]
+                # Ngữ cảnh chuẩn cho chỉ số retrieval: thuật ngữ của câu gốc có dấu,
+                # áp dụng cho mọi biến thể (không dấu, viết tắt).
+                glossary_ids = [term_id for term_id, _ in expected]
 
             variants = [("base", text, set())]
             if src == "vi":
@@ -155,7 +159,11 @@ def generate(spec: dict, glossary: Glossary) -> list[dict]:
                     continue
                 seen_texts.add((variant_text, tgt))
                 suffix = "" if name == "base" else f"-{name}"
-                expect: dict = {"entities": entities, "glossary": glossary_terms}
+                expect: dict = {
+                    "entities": entities,
+                    "glossary": glossary_terms,
+                    "glossary_ids": glossary_ids,
+                }
                 if clarify:
                     expect["status"] = "needs_clarification"
                 rows.append(
@@ -174,6 +182,67 @@ def generate(spec: dict, glossary: Glossary) -> list[dict]:
                         },
                     }
                 )
+    rows += _dialogues(spec, glossary, seen_texts)
+    return rows
+
+
+def _dialogues(spec: dict, glossary: Glossary, seen_texts: set[tuple[str, str]]) -> list[dict]:
+    """Hội thoại nhiều lượt: tin cuối cần ngữ cảnh (lượt `needs`) mới dịch đúng."""
+    langs: dict[str, str] = spec.get("speakers", {})
+    rows: list[dict] = []
+    for d in spec.get("dialogues", []):
+        src = langs[d["speaker"]]
+        tgt = "en" if src == "vi" else "vi"
+        history = [
+            {"sender_id": turn["speaker"], "lang": langs[turn["speaker"]], "text": turn["text"]}
+            for turn in d["history"]
+        ]
+        needs = d["needs"]
+        if any(not 0 <= i < len(history) for i in needs):
+            raise GoldenError(f"{d['id']}: chỉ số lượt trong needs không hợp lệ")
+        reference = d["reference"]
+        expected = _glossary_expectations(glossary, d["text"], src, tgt)
+        for term_id, target in expected:
+            if target.lower() not in reference.lower():
+                raise GoldenError(f"{d['id']}: bản tham chiếu không dùng thuật ngữ {term_id}")
+        entities = d.get("entities", [])
+        for e in entities:
+            if e not in reference:
+                raise GoldenError(f"{d['id']}: bản tham chiếu thiếu thực thể {e!r}")
+        tags = {*d.get("tags", []), "context"}
+        if tgt == "vi":
+            tags.add("en_vi")
+        variants = [("base", d["text"], set())]
+        if src == "vi":
+            variants.append(("unaccented", fold(d["text"]), {"unaccented"}))
+        for name, text, extra in variants:
+            if (text, tgt) in seen_texts:
+                continue
+            seen_texts.add((text, tgt))
+            suffix = "" if name == "base" else f"-{name}"
+            rows.append(
+                {
+                    "id": f"golden-{d['id']}{suffix}",
+                    "source_lang": src,
+                    "target_lang": tgt,
+                    "sender_id": d["speaker"],
+                    "text": text,
+                    "reference": reference,
+                    "history": history,
+                    "tags": sorted(tags | extra),
+                    "expect": {
+                        "entities": entities,
+                        "glossary": [target for _, target in expected],
+                        "glossary_ids": [term_id for term_id, _ in expected],
+                        "context_needed": needs,
+                    },
+                    "meta": {
+                        "dialogue": d["id"],
+                        "variant": name,
+                        "review_status": "synthetic-unreviewed",
+                    },
+                }
+            )
     return rows
 
 
