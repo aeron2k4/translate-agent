@@ -1,6 +1,7 @@
 //! Pipeline dịch một tin (bước 2–7; bước 1 chạy ở client). Không đổi thứ tự
 //! các bước khi chưa thảo luận.
 
+use crate::hitl::{self, Hitl, TermPair};
 use crate::memory::{MAX_TTL, Memory, Snapshot};
 use crate::risk::{self, Clarification};
 use crate::stream::StreamUnmask;
@@ -124,6 +125,7 @@ pub struct Translator {
     glossaries: Arc<Store>,
     router: Arc<Router>,
     memory: Memory,
+    hitl: Hitl,
     cache: PhraseCache,
     sink: Arc<dyn Sink>,
     hasher: Hasher,
@@ -152,6 +154,7 @@ impl Translator {
             glossaries,
             router,
             memory: Memory::new(MAX_TTL, 8),
+            hitl: Hitl::new(MAX_TTL),
             cache: PhraseCache::new(&secrets.cache_key, 10_000, MAX_TTL, 2),
             sink,
             hasher: Hasher::new(&secrets.id_hash_key),
@@ -173,6 +176,52 @@ impl Translator {
 
     pub fn glossaries(&self) -> &Store {
         &self.glossaries
+    }
+
+    pub fn hitl(&self) -> &Hitl {
+        &self.hitl
+    }
+
+    /// Ghi nhận bản sửa của người dùng; có hiệu lực ngay theo phạm vi.
+    pub fn submit_correction(&self, c: &hitl::Correction) -> hitl::Outcome {
+        let proposer = self.hasher.id(&c.user_id);
+        let out = self.hitl.submit(c, proposer.as_str());
+        self.emit(Event {
+            name: match c.scope {
+                hitl::Scope::Me => "correction.me",
+                hitl::Scope::Group => "correction.group",
+                hitl::Scope::Unit => "correction.unit",
+            },
+            thread: Some(self.hasher.id(&c.thread_id)),
+            ..Event::default()
+        });
+        out
+    }
+
+    /// Bản dịch đã chỉnh bởi người (phạm vi nhóm) cho một tin, nếu có.
+    pub fn corrected_translation(
+        &self,
+        thread: &str,
+        message_id: &str,
+        lang: &str,
+    ) -> Option<Translation> {
+        let text = self.hitl.corrected(thread, message_id, lang)?;
+        let mut t = Translation::translated(lang, text, Status::Translated, None);
+        t.edited_by_human = true;
+        t.label_key = Some("translation.edited_by_human");
+        Some(t)
+    }
+
+    /// Phiên đóng: xoá ngữ cảnh và bản sửa của luồng.
+    pub fn close_session(&self, thread: &str) {
+        self.memory.close_session(thread);
+        self.hitl.clear_thread(thread);
+    }
+
+    /// Thành viên rời nhóm: xoá ngữ cảnh và bản sửa của luồng.
+    pub fn member_left(&self, thread: &str, member: &str) {
+        self.memory.member_left(thread, member);
+        self.hitl.clear_thread(thread);
     }
 
     pub async fn translate(&self, req: &Request, on_stream: OnStream<'_>) -> Response {
@@ -217,16 +266,22 @@ impl Translator {
             .iter()
             .map(|t| self.glossaries.get(&req.domain, &source, t))
             .collect();
+        let overrides: Vec<Vec<TermPair>> = targets
+            .iter()
+            .map(|t| self.hitl.thread_terms(&req.thread_id, &source, t))
+            .collect();
         let (snapshot, masked, terms) = std::thread::scope(|s| {
             let ctx = s.spawn(|| self.memory.snapshot(&req.thread_id, &req.sender_id));
             let masked = mask(&req.text, &source);
             let terms: Vec<Vec<TermRef<'_>>> = glossaries
                 .iter()
                 .zip(&targets)
-                .map(|(g, t)| {
-                    g.as_ref().map_or_else(Vec::new, |g| {
+                .zip(&overrides)
+                .map(|((g, t), ov)| {
+                    let found = g.as_ref().map_or_else(Vec::new, |g| {
                         g.lookup(&req.text, &source, t, MAX_TERMS_PER_MESSAGE)
-                    })
+                    });
+                    merge_overrides(&req.text, ov, found)
                 })
                 .collect();
             (ctx.join().unwrap_or_default(), masked, terms)
@@ -431,6 +486,31 @@ impl Translator {
     }
 }
 
+/// Thuật ngữ nhóm đã sửa đứng trước và thay mục glossary trùng nguồn.
+fn merge_overrides<'a>(
+    text: &str,
+    overrides: &'a [TermPair],
+    found: Vec<TermRef<'a>>,
+) -> Vec<TermRef<'a>> {
+    let mut out: Vec<TermRef<'a>> = overrides
+        .iter()
+        .filter(|o| textnorm::contains_phrase(text, &o.source, true))
+        .map(|o| TermRef {
+            id: "group-override",
+            source: &o.source,
+            target: &o.target,
+        })
+        .collect();
+    let taken: Vec<String> = out.iter().map(|t| textnorm::fold(t.source)).collect();
+    out.extend(
+        found
+            .into_iter()
+            .filter(|t| !taken.contains(&textnorm::fold(t.source))),
+    );
+    out.truncate(MAX_TERMS_PER_MESSAGE);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -587,6 +667,39 @@ mod tests {
         assert!(r.clarification.is_none());
         assert_eq!(r.translations[0].status, Status::Translated);
         assert!(r.translations[0].text.contains("lái thử"));
+    }
+
+    #[tokio::test]
+    async fn group_corrections_apply_to_next_messages() {
+        let (t, _) = translator_with(glossary_mock());
+        let (_, on) = collect();
+        let c = hitl::Correction {
+            thread_id: "thread-1".into(),
+            message_id: "m1".into(),
+            user_id: "user-2".into(),
+            scope: hitl::Scope::Group,
+            domain: "automotive".into(),
+            source_lang: "vi".into(),
+            target_lang: "en".into(),
+            corrected_text: "I want a test ride".into(),
+            term: Some(TermPair {
+                source: "lái thử".into(),
+                target: "test ride".into(),
+            }),
+            original_text: None,
+        };
+        t.submit_correction(&c);
+        let shown = t.corrected_translation("thread-1", "m1", "en").unwrap();
+        assert!(shown.edited_by_human);
+        assert_eq!(shown.label_key, Some("translation.edited_by_human"));
+        let r = t.translate(&request("em muốn lái thử", &["en"]), &on).await;
+        assert!(
+            r.translations[0].text.contains("test ride"),
+            "{}",
+            r.translations[0].text
+        );
+        t.close_session("thread-1");
+        assert!(t.corrected_translation("thread-1", "m1", "en").is_none());
     }
 
     #[tokio::test]
