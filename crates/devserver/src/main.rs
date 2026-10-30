@@ -437,6 +437,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn serves_chat_playground() {
+        let (app, _) = test_app();
+        let (status, body) = get(app.clone(), "/").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("/static/app.js"));
+        for file in ["app.js", "style.css"] {
+            let (status, body) = get(app.clone(), &format!("/static/{file}")).await;
+            assert_eq!(status, StatusCode::OK, "{file}");
+            assert!(!body.is_empty());
+        }
+    }
+
+    #[tokio::test]
     async fn static_serving_only_allows_listed_files() {
         let (app, _) = test_app();
         for uri in [

@@ -20,3 +20,16 @@ make eval         # chạy tập kiểm thử chất lượng
 make redteam      # chạy bộ prompt injection / PII
 make lint         # rustfmt, clippy, ruff
 ```
+
+## Chat playground
+
+Giao diện chat để test trực quan pipeline (`apps/chat-playground/`, HTML/JS thuần,
+không cần build). Chạy `make dev` rồi mở http://127.0.0.1:8787.
+
+- Mỗi cột là một người tham gia với ngôn ngữ đọc riêng; gõ ở cột nào, cột khác thấy bản dịch stream.
+- Bấm vào một tin để xem Inspector: văn bản sau khi che thực thể (`⟦E1⟧`), dạng render vi/en,
+  quyết định lọc ở client và response JSON.
+- Công tắc mã hoá E2E (mock enclave) và "hội thoại cấm gửi ra ngoài"; nút đóng phiên, rời nhóm.
+- Tin mẫu lấy từ golden dataset (dữ liệu tổng hợp). Không nhập dữ liệu thật vào playground.
+
+Sửa file front-end chỉ cần reload trình duyệt; devserver đọc file từ đĩa mỗi request.
