@@ -406,6 +406,10 @@ function renderOwn(msg, viewer, classes, select) {
     const cls = tr.status === "failed" ? "pill danger" : "pill ok";
     meta.append(h("span", { class: cls }, `→ ${l}: ${tr.status}${tr.tier ? ` (${tr.tier})` : ""}`));
   }
+  if (msg.status === "done" && !Object.keys(msg.translations).length) {
+    const reasons = [...new Set(Object.values(msg.skips))];
+    meta.append(h("span", { class: "pill" }, `không cần dịch: ${reasons.join(", ") || "—"}`));
+  }
   if (msg.sealed) meta.append(h("span", { class: "pill" }, "E2E"));
 
   let clarify = null;
