@@ -3,7 +3,7 @@ VENV  ?= .venv
 PY    := $(abspath $(VENV))/bin/python
 RUFF  := $(abspath $(VENV))/bin/ruff
 
-.PHONY: venv test lint fmt
+.PHONY: venv test lint fmt eval redteam cli
 
 ## make venv: tạo .venv và cài công cụ dev Python (pytest, ruff)
 venv: $(VENV)/.installed
@@ -29,3 +29,14 @@ fmt: venv
 	$(CARGO) fmt --all
 	$(RUFF) format python
 	$(RUFF) check --fix python
+
+cli:
+	$(CARGO) build --quiet -p xt-cli
+
+## make eval: tập kiểm thử chất lượng (glossary, số/thực thể, COMET nếu có XT_COMET_CMD)
+eval: venv cli
+	cd python && $(PY) -m xt_eval.eval --cli $(abspath target/debug/xt-cli)
+
+## make redteam: prompt injection, PII, rò rỉ ngữ cảnh/log
+redteam: venv cli
+	cd python && $(PY) -m xt_eval.redteam --cli $(abspath target/debug/xt-cli)

@@ -564,6 +564,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "xt-cli"
+version = "0.1.0"
+dependencies = [
+ "glossary",
+ "model-router",
+ "serde",
+ "serde_json",
+ "telemetry",
+ "tokio",
+ "translator",
+]
+
+[[package]]
 name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"

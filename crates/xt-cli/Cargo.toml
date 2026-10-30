@@ -1,0 +1,17 @@
+[package]
+name = "xt-cli"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+glossary.workspace = true
+model-router.workspace = true
+telemetry.workspace = true
+translator.workspace = true
+
+[lints]
+workspace = true
