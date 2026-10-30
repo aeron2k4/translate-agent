@@ -12,6 +12,7 @@ glossary.workspace = true
 model-router = { workspace = true, features = ["http"] }
 telemetry.workspace = true
 translator.workspace = true
+prompts.workspace = true
 
 [lints]
 workspace = true

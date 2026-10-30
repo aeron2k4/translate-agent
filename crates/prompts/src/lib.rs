@@ -5,6 +5,8 @@
 //!   tận dụng prompt caching. Không chèn thời gian, id hay nội dung tin vào đây.
 //! - Nội dung tin luôn là dữ liệu, nằm giữa hai dòng đánh dấu có mã ngẫu nhiên.
 
+pub mod judge;
+
 use model_router::ModelRequest;
 use serde::Deserialize;
 use std::collections::hash_map::RandomState;
