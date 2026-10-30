@@ -15,7 +15,7 @@ tokio-stream.workspace = true
 client-core.workspace = true
 glossary.workspace = true
 validators.workspace = true
-model-router.workspace = true
+model-router = { workspace = true, features = ["http"] }
 telemetry.workspace = true
 translator.workspace = true
 

@@ -567,7 +567,20 @@ async function init() {
   document.getElementById("btn-new").addEventListener("click", newSession);
 
   renderColumns();
-  await loadSamples();
+  await Promise.all([loadSamples(), loadModels()]);
+}
+
+async function loadModels() {
+  const models = await api("GET", "/v1/dev/models").catch(() => null);
+  if (!models) return;
+  const pill = document.getElementById("env-pill");
+  const external = Object.values(models).some((m) => m.external);
+  const desc = Object.entries(models)
+    .map(([tier, m]) => `${tier}: ${m.provider}${m.external ? " (ra ngoài)" : ""}`).join(" · ");
+  pill.textContent = `mock enclave · ${desc}`;
+  pill.title = external
+    ? "Tin được gửi tới provider bên ngoài — chỉ dùng dữ liệu tổng hợp"
+    : "Mọi tầng chạy nội bộ (provider giả)";
 }
 
 init();

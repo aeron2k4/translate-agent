@@ -1,0 +1,43 @@
+# Mẫu cấu hình cho dev với endpoint tương thích OpenAI (`/v1/chat/completions`).
+#
+#   cp config/models.local.example.toml config/models.local.toml   # file này không commit
+#   export API_KEY_ENV_NAME=...                                     # khoá chỉ nằm trong biến môi trường
+#   XT_MODELS_CONFIG=config/models.local.toml make dev
+#
+# Bản rõ được gửi tới endpoint này. Chỉ dùng dữ liệu tổng hợp (tin mẫu golden).
+# `approved = true` nghĩa là bảo mật/pháp chế đã duyệt và có thoả thuận không lưu
+# dữ liệu (`no_retention`); router từ chối khởi động nếu thiếu một trong hai.
+# Tầng dự phòng phải chạy nội bộ (`external = false`) cho hội thoại cấm gửi ra ngoài.
+
+[providers.remote]
+kind = "openai_compatible"
+no_retention = false
+approved = false
+external = true
+
+[providers.remote.options]
+base_url = "https://example.invalid/v1"
+api_key_env = "API_KEY_ENV_NAME"
+# Tắt chế độ suy nghĩ của mô hình kiểu Qwen3 (chat_template_kwargs).
+disable_thinking = "true"
+
+[providers.mock]
+kind = "mock"
+no_retention = true
+approved = true
+external = false
+
+[tiers.fast]
+provider = "remote"
+model = "model-name"
+timeout_ms = 10000
+
+[tiers.strong]
+provider = "remote"
+model = "model-name"
+timeout_ms = 20000
+
+[tiers.fallback]
+provider = "mock"
+model = "mock-mt"
+timeout_ms = 2000

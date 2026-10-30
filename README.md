@@ -33,3 +33,17 @@ không cần build). Chạy `make dev` rồi mở http://127.0.0.1:8787.
 - Tin mẫu lấy từ golden dataset (dữ liệu tổng hợp). Không nhập dữ liệu thật vào playground.
 
 Sửa file front-end chỉ cần reload trình duyệt; devserver đọc file từ đĩa mỗi request.
+
+### Dịch bằng mô hình thật
+
+Mặc định `make dev` dùng provider giả (chỉ thay thuật ngữ glossary, không dịch cả câu).
+Để nối một endpoint tương thích OpenAI:
+
+```
+cp config/models.local.example.toml config/models.local.toml   # không commit; sửa base_url, model
+export API_KEY_ENV_NAME=...                                     # tên biến đặt trong api_key_env
+XT_MODELS_CONFIG=config/models.local.toml make dev
+```
+
+Tin được gửi ra ngoài, nên chỉ dùng dữ liệu tổng hợp. Tầng dự phòng vẫn là provider nội bộ.
+Nhãn đầu trang playground cho biết mỗi tầng đang dùng provider nào.

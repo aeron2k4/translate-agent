@@ -1,5 +1,9 @@
-//! make dev: chạy local toàn bộ pipeline qua HTTP, không TEE, dùng mock enclave
-//! và provider giả. Không log nội dung request/response.
+//! make dev: chạy local toàn bộ pipeline qua HTTP, không TEE, dùng mock enclave.
+//! Không log nội dung request/response.
+//!
+//! Mô hình lấy theo `config/models.toml` (provider giả) hoặc file trong biến môi
+//! trường `XT_MODELS_CONFIG`, ví dụ `config/models.local.toml` (không commit) để
+//! nối endpoint tương thích OpenAI.
 //!
 //! - GET  /healthz
 //! - GET  /v1/attestation
@@ -16,6 +20,7 @@
 //! - POST /v1/dev/filter            (mô phỏng bước 1 chạy trên client)
 //! - POST /v1/dev/inspect           (xem tin sau khi che thực thể)
 //! - GET  /v1/dev/samples           (tin mẫu từ golden dataset tổng hợp)
+//! - GET  /v1/dev/models            (tầng → provider đang dùng)
 //!
 //! Các endpoint /v1/dev/* trả lại nội dung đã che — CHỈ có trong devserver,
 //! không bao giờ đưa vào service thật.
@@ -29,7 +34,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use enclave::{Enclave, EnclaveError, MockEnclave, Sealed};
-use model_router::{Config, Registry};
+use model_router::{Config, OpenAiCompat, Registry};
 use serde::Deserialize;
 use serde_json::json;
 use std::convert::Infallible;
@@ -48,6 +53,8 @@ struct AppState {
     /// Đề xuất cho đơn vị (chỉ cặp thuật ngữ + ví dụ đã ẩn danh), JSONL cho
     /// `python -m xt_admin.review <queue.json> ingest`.
     suggestions: Mutex<Option<std::fs::File>>,
+    /// Tầng → provider, để playground hiển thị (không có khoá bí mật).
+    models: serde_json::Value,
 }
 
 type Shared = Arc<AppState>;
@@ -258,6 +265,10 @@ async fn dev_samples(State(state): State<Shared>) -> Response {
     Json(samples).into_response()
 }
 
+async fn dev_models(State(state): State<Shared>) -> Response {
+    Json(state.models.clone()).into_response()
+}
+
 fn app(state: Shared) -> Router {
     Router::new()
         .route("/", get(index))
@@ -266,6 +277,7 @@ fn app(state: Shared) -> Router {
         .route("/v1/dev/filter", post(dev_filter))
         .route("/v1/dev/inspect", post(dev_inspect))
         .route("/v1/dev/samples", get(dev_samples))
+        .route("/v1/dev/models", get(dev_models))
         .route("/healthz", get(|| async { "ok" }))
         .route(
             "/v1/attestation",
@@ -283,15 +295,42 @@ fn app(state: Shared) -> Router {
         .with_state(state)
 }
 
-fn build_state(repo: &std::path::Path, suggestions: Option<PathBuf>) -> Result<AppState, String> {
+fn build_state(
+    repo: &std::path::Path,
+    models: &std::path::Path,
+    suggestions: Option<PathBuf>,
+) -> Result<AppState, String> {
     let store =
         glossary::Store::load_dir(&repo.join("glossary/data")).map_err(|e| e.to_string())?;
-    let raw =
-        std::fs::read_to_string(repo.join("config/models.toml")).map_err(|e| e.to_string())?;
+    let raw = std::fs::read_to_string(models).map_err(|e| format!("{}: {e}", models.display()))?;
     let cfg = Config::parse(&raw).map_err(|e| e.to_string())?;
+    let mut tiers = serde_json::Map::new();
+    for (tier, tc) in cfg.tiers().map_err(|e| e.to_string())? {
+        let pc = cfg.providers.get(&tc.provider);
+        if let Some(env) = pc.and_then(OpenAiCompat::missing_key) {
+            eprintln!(
+                "devserver: chưa đặt biến môi trường {env} cho provider {}; tầng {} sẽ chuyển sang dự phòng",
+                tc.provider,
+                tier.as_str()
+            );
+        }
+        tiers.insert(
+            tier.as_str().into(),
+            json!({
+                "provider": tc.provider,
+                "kind": pc.map(|p| p.kind.as_str()),
+                "model": tc.model,
+                "external": pc.is_some_and(|p| p.external),
+            }),
+        );
+    }
     let provider = Arc::new(translator::mock::glossary_mock());
     let mut registry = Registry::default();
     registry.register("mock", Box::new(move |_| provider.clone()));
+    registry.register(
+        "openai_compatible",
+        Box::new(|pc| Arc::new(OpenAiCompat::from_config(pc))),
+    );
     let router = model_router::Router::new(&cfg, &registry).map_err(|e| e.to_string())?;
     let secrets = Secrets {
         cache_key: b"devserver-only".to_vec(),
@@ -318,6 +357,7 @@ fn build_state(repo: &std::path::Path, suggestions: Option<PathBuf>) -> Result<A
         translator: Translator::new(Arc::new(store), Arc::new(router), sink, &secrets),
         enclave: Box::new(MockEnclave::new(*b"xt-dev-only-key-not-for-prod!!!!")),
         suggestions: Mutex::new(suggestions),
+        models: serde_json::Value::Object(tiers),
     })
 }
 
@@ -325,18 +365,23 @@ fn build_state(repo: &std::path::Path, suggestions: Option<PathBuf>) -> Result<A
 async fn main() {
     let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let addr = std::env::var("XT_DEV_ADDR").unwrap_or_else(|_| "127.0.0.1:8787".into());
-    let state =
-        build_state(&repo, Some(repo.join("var/review/suggestions.jsonl"))).unwrap_or_else(|e| {
-            eprintln!("devserver: {e}");
-            std::process::exit(2)
-        });
+    let models = std::env::var("XT_MODELS_CONFIG")
+        .map_or_else(|_| repo.join("config/models.toml"), |p| repo.join(p));
+    let suggestions = Some(repo.join("var/review/suggestions.jsonl"));
+    let state = build_state(&repo, &models, suggestions).unwrap_or_else(|e| {
+        eprintln!("devserver: {e}");
+        std::process::exit(2)
+    });
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .unwrap_or_else(|e| {
             eprintln!("devserver: không bind được {addr}: {e}");
             std::process::exit(2)
         });
-    eprintln!("devserver (mock enclave, provider giả) đang chạy ở http://{addr}");
+    eprintln!(
+        "devserver (mock enclave, mô hình theo {}) đang chạy ở http://{addr}",
+        models.display()
+    );
     eprintln!("chat playground: http://{addr}/");
     if let Err(e) = axum::serve(listener, app(Arc::new(state))).await {
         eprintln!("devserver: {e}");
@@ -351,7 +396,8 @@ mod tests {
 
     fn test_app() -> (Router, Shared) {
         let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let state = Arc::new(build_state(&repo, None).unwrap());
+        let models = repo.join("config/models.toml");
+        let state = Arc::new(build_state(&repo, &models, None).unwrap());
         (app(state.clone()), state)
     }
 
@@ -463,6 +509,16 @@ mod tests {
                 "{uri}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn dev_models_lists_tiers() {
+        let (app, _) = test_app();
+        let (status, body) = get(app, "/v1/dev/models").await;
+        assert_eq!(status, StatusCode::OK);
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["fallback"]["kind"], "mock");
+        assert_eq!(v["fallback"]["external"], false);
     }
 
     #[tokio::test]
