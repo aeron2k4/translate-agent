@@ -3,7 +3,7 @@ VENV  ?= .venv
 PY    := $(abspath $(VENV))/bin/python
 RUFF  := $(abspath $(VENV))/bin/ruff
 
-.PHONY: venv dev test lint fmt eval redteam cli
+.PHONY: venv dev test lint fmt eval redteam cli golden
 
 ## make venv: tạo .venv và cài công cụ dev Python (pytest, ruff)
 venv: $(VENV)/.installed
@@ -44,3 +44,7 @@ eval: venv cli
 ## make redteam: prompt injection, PII, rò rỉ ngữ cảnh/log
 redteam: venv cli
 	cd python && $(PY) -m xt_eval.redteam --cli $(abspath target/debug/xt-cli)
+
+## make golden: sinh lại eval/datasets/golden.*.jsonl từ mẫu viết tay trong eval/golden/
+golden: venv
+	cd python && $(PY) -m xt_eval.golden

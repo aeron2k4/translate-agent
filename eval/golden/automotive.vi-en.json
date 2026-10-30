@@ -1,0 +1,141 @@
+{
+  "domain": "automotive",
+  "note": "Mẫu câu song ngữ viết tay, dữ liệu tổng hợp hoàn toàn. Bản tham chiếu và dạng đúng của thực thể là chuẩn độc lập với code. Sửa file này rồi chạy `make golden`.",
+  "address_pairs": [["anh", "em"], ["chị", "em"], ["em", "anh"], ["em", "chị"]],
+  "abbreviations": {"không": "ko", "được": "đc", "rồi": "r", "gì": "j", "vậy": "v", "với": "vs", "anh": "a", "chị": "c", "em": "e"},
+  "slots": {
+    "money": [
+      {"vi": "5 củ", "en": "5 million VND", "tags": ["cu"]},
+      {"vi": "2 tỏi", "en": "2 billion VND", "tags": ["toi"]},
+      {"vi": "1tr2", "en": "1.2 million VND", "tags": ["money_slang"]},
+      {"vi": "500k", "en": "500,000 VND", "tags": ["money_slang"]},
+      {"vi": "850.000đ", "en": "850,000 VND", "tags": ["money"]},
+      {"vi": "30 triệu", "en": "30 million VND", "tags": ["money"]},
+      {"vi": "1,5 tỷ", "en": "1.5 billion VND", "tags": ["money"]}
+    ],
+    "money_range": [
+      {"vi": "5-7 triệu", "en": "5–7 million VND", "tags": ["money_range"]},
+      {"vi": "10-15 triệu", "en": "10–15 million VND", "tags": ["money_range"]}
+    ],
+    "date": [
+      {"vi": "15/11", "en": "15 Nov", "tags": ["vi_date"]},
+      {"vi": "2/12/2026", "en": "2 Dec 2026", "tags": ["vi_date"]},
+      {"vi": "31/1", "en": "31 Jan", "tags": ["vi_date"]},
+      {"vi": "5/3", "en": "5 Mar", "tags": ["vi_date"]}
+    ],
+    "time": [
+      {"vi": "9h30", "en": "9:30", "tags": ["time"]},
+      {"vi": "14h", "en": "14:00", "tags": ["time"]},
+      {"vi": "8h15", "en": "8:15", "tags": ["time"]}
+    ],
+    "plate": [
+      {"vi": "51A-123.45", "en": "51A-123.45", "tags": ["entity"]},
+      {"vi": "30E-12345", "en": "30E-12345", "tags": ["entity"]},
+      {"vi": "29H-678.90", "en": "29H-678.90", "tags": ["entity"]}
+    ],
+    "phone": [
+      {"vi": "0900000001", "en": "0900000001", "tags": ["entity", "pii"]},
+      {"vi": "+84900000003", "en": "+84900000003", "tags": ["entity", "pii"]}
+    ],
+    "account": [
+      {"vi": "1903000000001", "en": "1903000000001", "tags": ["entity", "pii"]}
+    ],
+    "email": [
+      {"vi": "khachhang01@example.com", "en": "khachhang01@example.com", "tags": ["entity", "pii"]}
+    ],
+    "seats": [
+      {"vi": "5", "en": "5", "tags": ["number"]},
+      {"vi": "7", "en": "7", "tags": ["number"]}
+    ],
+    "months": [
+      {"vi": "12", "en": "12", "tags": ["number"]},
+      {"vi": "24", "en": "24", "tags": ["number"]}
+    ],
+    "money_en": [
+      {"en": "5 million VND", "vi": "5 triệu đồng", "tags": ["money"]},
+      {"en": "200 million VND", "vi": "200 triệu đồng", "tags": ["money"]},
+      {"en": "1.5 billion VND", "vi": "1,5 tỷ đồng", "tags": ["money"]}
+    ],
+    "usd": [
+      {"en": "$120", "vi": "$120", "tags": ["money"]},
+      {"en": "$1,200", "vi": "$1,200", "tags": ["money"]}
+    ],
+    "date_en": [
+      {"en": "11/15", "vi": "15/11", "tags": ["en_date"]},
+      {"en": "12/24", "vi": "24/12", "tags": ["en_date"]},
+      {"en": "1/31/2027", "vi": "31/1/2027", "tags": ["en_date"]}
+    ],
+    "ambiguous_date_en": [
+      {"en": "3/4", "vi": "3/4", "tags": ["ambiguity"]},
+      {"en": "5/6", "vi": "5/6", "tags": ["ambiguity"]},
+      {"en": "10/11", "vi": "10/11", "tags": ["ambiguity"]}
+    ],
+    "unitless_price": [
+      {"vi": "500", "en": "500", "tags": ["ambiguity"]},
+      {"vi": "300", "en": "300", "tags": ["ambiguity"]},
+      {"vi": "850", "en": "850", "tags": ["ambiguity"]}
+    ]
+  },
+  "templates": [
+    {"id": "vi01", "from": "vi", "vi": "{Addr} ơi, giá lăn bánh xe này bao nhiêu ạ?", "en": "Hi, what's the on-the-road price of this car?", "tags": ["question"]},
+    {"id": "vi02", "from": "vi", "vi": "{Self} muốn đăng ký lái thử vào cuối tuần này.", "en": "I'd like to book a test drive this weekend.", "tags": []},
+    {"id": "vi03", "from": "vi", "vi": "Cọc {money} là giữ được xe không {addr}?", "en": "Will a {money} deposit hold the car?", "tags": ["no_subject"]},
+    {"id": "vi04", "from": "vi", "vi": "{Self} đặt cọc {money} trước nhé {addr}.", "en": "I'll put down a {money} deposit first.", "tags": []},
+    {"id": "vi05", "from": "vi", "vi": "Xe này lăn bánh tầm {money} thôi {addr}.", "en": "This car comes to only about {money} on the road.", "tags": []},
+    {"id": "vi06", "from": "vi", "vi": "Phí bảo dưỡng định kỳ là {money}.", "en": "The scheduled maintenance fee is {money}.", "tags": []},
+    {"id": "vi07", "from": "vi", "vi": "Giao xe ngày {date} được không {addr}?", "en": "Can the vehicle handover be on {date}?", "tags": ["no_subject"]},
+    {"id": "vi08", "from": "vi", "vi": "Hợp đồng mua bán ký ngày {date}.", "en": "The sales contract is signed on {date}.", "tags": ["commitment"]},
+    {"id": "vi09", "from": "vi", "vi": "Đã đặt cọc rồi, khi nào giao xe?", "en": "The deposit has been paid — when is the vehicle handover?", "tags": ["no_subject"]},
+    {"id": "vi10", "from": "vi", "vi": "Muốn trả góp thì lãi suất bao nhiêu?", "en": "If I want an installment plan, what's the interest rate?", "tags": ["no_subject"]},
+    {"id": "vi11", "from": "vi", "vi": "Biển số {plate} bấm xong rồi {addr} nhé.", "en": "License plate {plate} has been issued.", "tags": []},
+    {"id": "vi12", "from": "vi", "vi": "{Addr} gọi {self} số {phone} nhé.", "en": "Please call me at {phone}.", "tags": []},
+    {"id": "vi13", "from": "vi", "vi": "Xe điện này sạc nhanh ở trạm sạc nào gần nhất?", "en": "Where is the nearest charging station with fast charging for this electric vehicle?", "tags": ["question"]},
+    {"id": "vi14", "from": "vi", "vi": "Gói thuê pin bao nhiêu một tháng vậy {addr}?", "en": "How much is the battery subscription per month?", "tags": ["question"]},
+    {"id": "vi15", "from": "vi", "vi": "Pin được bảo hành mấy năm?", "en": "How many years is the battery under warranty?", "tags": ["no_subject", "question"]},
+    {"id": "vi16", "from": "vi", "vi": "Bên {addr} còn xe lướt không?", "en": "Do you still have any lightly used cars?", "tags": ["question"]},
+    {"id": "vi17", "from": "vi", "vi": "Lốp sau bị non hơi, {self} ghé xưởng được không?", "en": "The rear tire is low on air — can I drop by the workshop?", "tags": []},
+    {"id": "vi18", "from": "vi", "vi": "Phanh kêu khi đi chậm, kiểm tra giúp {self} với.", "en": "The brakes squeak at low speed — please check them for me.", "tags": []},
+    {"id": "vi19", "from": "vi", "vi": "Gương chiếu hậu gập điện bị lỗi rồi.", "en": "The power-folding side mirror is faulty.", "tags": ["no_subject"]},
+    {"id": "vi20", "from": "vi", "vi": "Cốp xe có rộng không {addr}?", "en": "Is the trunk spacious?", "tags": ["question"]},
+    {"id": "vi21", "from": "vi", "vi": "Lệ phí trước bạ ở Hà Nội là bao nhiêu?", "en": "How much is the registration tax in Hanoi?", "tags": ["question"]},
+    {"id": "vi22", "from": "vi", "vi": "Xe mới có phải đăng kiểm không?", "en": "Does a new car need a vehicle inspection?", "tags": ["question"]},
+    {"id": "vi23", "from": "vi", "vi": "Tháng này có ưu đãi gì không {addr}?", "en": "Are there any promotions this month?", "tags": ["question"]},
+    {"id": "vi24", "from": "vi", "vi": "Bảo hiểm thân vỏ được tặng năm đầu đúng không?", "en": "Physical damage insurance is free for the first year, right?", "tags": ["question"]},
+    {"id": "vi25", "from": "vi", "vi": "{Self} là tư vấn bán hàng phụ trách xe của {addr}.", "en": "I'm the sales consultant in charge of your car.", "tags": []},
+    {"id": "vi26", "from": "vi", "vi": "Quãng đường di chuyển mỗi lần sạc đầy là bao xa?", "en": "What is the driving range on a full charge?", "tags": ["question"]},
+    {"id": "vi27", "from": "vi", "vi": "Lịch bảo dưỡng tiếp theo là ngày {date} lúc {time}.", "en": "The next maintenance appointment is on {date} at {time}.", "tags": []},
+    {"id": "vi28", "from": "vi", "vi": "{Self} book lịch lái thử {time} sáng mai nha.", "en": "I'll book a test drive at {time} tomorrow morning.", "tags": ["mixed"]},
+    {"id": "vi29", "from": "vi", "vi": "{Addr} check giúp {self} invoice đặt cọc nhé.", "en": "Could you check the deposit invoice for me?", "tags": ["mixed"]},
+    {"id": "vi30", "from": "vi", "vi": "Deal này ok rồi, {self} chốt luôn nhé.", "en": "This deal works — I'll go ahead and close it.", "tags": ["mixed", "commitment"]},
+    {"id": "vi31", "from": "vi", "vi": "Giá lăn bánh chênh khoảng {money_range}.", "en": "The on-the-road price differs by about {money_range}.", "tags": []},
+    {"id": "vi32", "from": "vi", "vi": "Trả trước {money}, phần còn lại trả góp {months} tháng.", "en": "Pay {money} upfront and the rest in a {months}-month installment plan.", "tags": ["no_subject"]},
+    {"id": "vi33", "from": "vi", "vi": "Showroom mở cửa đến {time} hôm nay.", "en": "The showroom is open until {time} today.", "tags": ["mixed"]},
+    {"id": "vi34", "from": "vi", "vi": "Xe {seats} chỗ còn màu trắng không {addr}?", "en": "Is the {seats}-seat model still available in white?", "tags": ["question"]},
+    {"id": "vi35", "from": "vi", "vi": "Chuyển khoản đặt cọc vào số tài khoản {account} giúp {self}.", "en": "Please transfer the deposit to account number {account}.", "tags": []},
+    {"id": "vi36", "from": "vi", "vi": "Đặt cọc xong {self} gửi hợp đồng mua bán qua email {email} nhé.", "en": "Once the deposit is paid, I'll send the sales contract to {email}.", "tags": ["commitment"]},
+
+    {"id": "en01", "from": "en", "en": "Can I book a test drive for Saturday?", "vi": "Tôi có thể đặt lịch lái thử vào thứ Bảy không?", "tags": ["en_vi", "question"]},
+    {"id": "en02", "from": "en", "en": "The deposit is {money_en}.", "vi": "Tiền đặt cọc là {money_en}.", "tags": ["en_vi"]},
+    {"id": "en03", "from": "en", "en": "The vehicle handover is on {date_en}.", "vi": "Ngày giao xe là {date_en}.", "tags": ["en_vi"]},
+    {"id": "en04", "from": "en", "en": "Is the battery subscription included in the price?", "vi": "Gói thuê pin có bao gồm trong giá không?", "tags": ["en_vi", "question"]},
+    {"id": "en05", "from": "en", "en": "What does the warranty cover?", "vi": "Bảo hành bao gồm những gì?", "tags": ["en_vi", "question"]},
+    {"id": "en06", "from": "en", "en": "Where is the nearest charging station?", "vi": "Trạm sạc gần nhất ở đâu?", "tags": ["en_vi", "question"]},
+    {"id": "en07", "from": "en", "en": "I'd like an installment plan with a low interest rate.", "vi": "Tôi muốn mua trả góp với lãi suất thấp.", "tags": ["en_vi"]},
+    {"id": "en08", "from": "en", "en": "Please send me the sales contract before Friday.", "vi": "Vui lòng gửi tôi hợp đồng mua bán trước thứ Sáu.", "tags": ["en_vi", "commitment"]},
+    {"id": "en09", "from": "en", "en": "Does this electric vehicle support fast charging?", "vi": "Xe điện này có hỗ trợ sạc nhanh không?", "tags": ["en_vi", "question"]},
+    {"id": "en10", "from": "en", "en": "My license plate is {plate}.", "vi": "Biển số xe của tôi là {plate}.", "tags": ["en_vi"]},
+    {"id": "en11", "from": "en", "en": "Call me at {phone}.", "vi": "Gọi cho tôi theo số {phone} nhé.", "tags": ["en_vi"]},
+    {"id": "en12", "from": "en", "en": "The maintenance costs {usd}.", "vi": "Phí bảo dưỡng là {usd}.", "tags": ["en_vi"]},
+    {"id": "en13", "from": "en", "en": "Is there a promotion for early bookings?", "vi": "Có ưu đãi cho khách đặt sớm không?", "tags": ["en_vi", "question"]},
+    {"id": "en14", "from": "en", "en": "Can you check the tire pressure and the brakes?", "vi": "Bạn kiểm tra giúp áp suất lốp và phanh được không?", "tags": ["en_vi", "question"]},
+
+    {"id": "amb01", "from": "en", "en": "Can we do the test drive on {ambiguous_date_en}?", "vi": null, "status": "needs_clarification", "tags": ["en_vi"]},
+    {"id": "amb02", "from": "en", "en": "The handover is on {ambiguous_date_en}.", "vi": null, "status": "needs_clarification", "tags": ["en_vi"]},
+    {"id": "amb03", "from": "vi", "vi": "giá {unitless_price} được không {addr}", "en": null, "status": "needs_clarification", "tags": []},
+    {"id": "amb04", "from": "vi", "vi": "{Self} cọc {unitless_price} trước nhé", "en": null, "status": "needs_clarification", "tags": []},
+
+    {"id": "ctl01", "from": "vi", "vi": "Cọc 2 xe luôn nhé {addr}.", "en": "I'll put a deposit on 2 cars.", "entities": ["2"], "tags": ["ambiguity_control"]},
+    {"id": "ctl02", "from": "vi", "vi": "3 ngày nữa giao xe.", "en": "The vehicle handover is in 3 days.", "entities": ["3"], "tags": ["ambiguity_control", "no_subject"]},
+    {"id": "ctl03", "from": "vi", "vi": "Giao xe ngày 3/4 nhé {addr}.", "en": "Vehicle handover on 3 Apr.", "entities": ["3 Apr"], "tags": ["ambiguity_control", "vi_date"]}
+  ]
+}
