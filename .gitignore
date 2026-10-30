@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 .env
 .env.*
+!.env.example
 /var/
 
 # Cấu hình mô hình local (có thể trỏ tới provider chưa duyệt)

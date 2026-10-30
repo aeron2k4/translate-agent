@@ -44,9 +44,12 @@ Mặc định `make dev` dùng provider giả (chỉ thay thuật ngữ glossary
 
 ```
 cp config/models.local.example.toml config/models.local.toml   # không commit; sửa base_url, model
-export API_KEY_ENV_NAME=...                                     # tên biến đặt trong api_key_env
-XT_MODELS_CONFIG=config/models.local.toml make dev
+cp .env.example .env                                            # không commit; điền khoá API
+make dev
 ```
+
+`Makefile` tự nạp `.env` (khoá API và `XT_MODELS_CONFIG`) cho `make dev` và `make eval`;
+`make redteam` luôn dùng provider giả.
 
 Tin được gửi ra ngoài, nên chỉ dùng dữ liệu tổng hợp. Tầng dự phòng vẫn là provider nội bộ.
 Nhãn đầu trang playground cho biết mỗi tầng đang dùng provider nào.

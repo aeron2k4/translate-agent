@@ -29,7 +29,9 @@ impl OpenAiCompat {
         Self {
             http: reqwest::Client::new(),
             url: format!("{}/chat/completions", base.trim_end_matches('/')),
-            api_key: Self::key_env(pc).and_then(|name| std::env::var(name).ok()),
+            api_key: Self::key_env(pc)
+                .and_then(|name| std::env::var(name).ok())
+                .filter(|k| !k.trim().is_empty()),
             disable_thinking: pc
                 .options
                 .get("disable_thinking")
@@ -43,7 +45,7 @@ impl OpenAiCompat {
 
     /// Tên biến môi trường chứa khoá nếu nó chưa được đặt.
     pub fn missing_key(pc: &ProviderConfig) -> Option<&str> {
-        Self::key_env(pc).filter(|name| std::env::var(name).is_err())
+        Self::key_env(pc).filter(|name| std::env::var(name).map_or(true, |k| k.trim().is_empty()))
     }
 
     fn payload(&self, model: &str, req: &ModelRequest) -> Value {

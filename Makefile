@@ -3,6 +3,12 @@ VENV  ?= .venv
 PY    := $(abspath $(VENV))/bin/python
 RUFF  := $(abspath $(VENV))/bin/ruff
 NODE  ?= node
+
+# Biến môi trường local (khoá API, cấu hình mô hình) từ .env — không commit, xem .env.example.
+ifneq (,$(wildcard .env))
+include .env
+export $(shell sed -n 's/^[[:space:]]*\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*=.*/\1/p' .env)
+endif
 WEB   := apps/chat-playground
 # Chat playground là JS thuần, không dependency; máy không có node thì bỏ qua.
 HAS_NODE := $(shell command -v $(NODE) 2>/dev/null)
@@ -17,7 +23,7 @@ $(VENV)/.installed: python/requirements-dev.txt
 	$(PY) -m pip install -q --disable-pip-version-check -r python/requirements-dev.txt
 	touch $@
 
-## make dev: chạy local toàn bộ pipeline (không TEE, mock enclave, provider giả)
+## make dev: chạy local toàn bộ pipeline (không TEE, mock enclave; mô hình theo XT_MODELS_CONFIG)
 dev:
 	$(CARGO) run --quiet -p devserver
 

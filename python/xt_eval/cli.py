@@ -31,7 +31,8 @@ def run(
         "--glossary-dir",
         str(REPO / "glossary" / "data"),
         "--config",
-        str(models_config()),
+        # --audit chỉ ghi được prompt của provider giả, nên red team luôn dùng nó.
+        str(REPO / "config" / "models.toml" if audit else models_config()),
     ]
     if audit:
         args.append("--audit")
