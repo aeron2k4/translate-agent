@@ -454,7 +454,10 @@ impl Translator {
                 ttft: first_delta.lock().ok().and_then(|f| *f),
                 tokens_in: Some(routed.completion.usage.tokens_in),
                 tokens_out: Some(routed.completion.usage.tokens_out),
-                error: issues.first().map(|i| i.code.as_str()),
+                error: issues
+                    .first()
+                    .map(|i| i.code.as_str())
+                    .or(routed.fallback_from.map(|e| e.code())),
             });
 
             if issues.is_empty() {

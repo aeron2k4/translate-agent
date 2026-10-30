@@ -161,6 +161,8 @@ impl RouterError {
 pub struct Routed {
     pub completion: Completion,
     pub tier: Tier,
+    /// Lỗi của tầng được chọn ban đầu khi phải chuyển sang tầng dự phòng.
+    pub fallback_from: Option<ProviderError>,
 }
 
 pub struct Router {
@@ -229,14 +231,19 @@ impl Router {
             return Err(RouterError::NoInternalRoute);
         }
         match self.call(tier, req, on_delta).await {
-            Ok(completion) => Ok(Routed { completion, tier }),
+            Ok(completion) => Ok(Routed {
+                completion,
+                tier,
+                fallback_from: None,
+            }),
             Err(e) if tier == Tier::Fallback => Err(RouterError::Provider(e)),
-            Err(_) => self
+            Err(e) => self
                 .call(Tier::Fallback, req, on_delta)
                 .await
                 .map(|completion| Routed {
                     completion,
                     tier: Tier::Fallback,
+                    fallback_from: Some(e),
                 })
                 .map_err(RouterError::Provider),
         }
@@ -344,9 +351,15 @@ mod tests {
 
     #[tokio::test]
     async fn falls_back_on_error_and_timeout() {
-        for ext in [
-            MockProvider::failing(ProviderError::Unavailable),
-            MockProvider::echo().with_delay(Duration::from_millis(200)),
+        for (ext, cause) in [
+            (
+                MockProvider::failing(ProviderError::Unavailable),
+                ProviderError::Unavailable,
+            ),
+            (
+                MockProvider::echo().with_delay(Duration::from_millis(200)),
+                ProviderError::Timeout,
+            ),
         ] {
             let router = Router::new(&config(""), &registry(ext)).unwrap();
             let out = router
@@ -356,6 +369,7 @@ mod tests {
                 .unwrap();
             assert_eq!(out.tier, Tier::Fallback);
             assert_eq!(out.completion.text, "from-local");
+            assert_eq!(out.fallback_from, Some(cause));
         }
     }
 
