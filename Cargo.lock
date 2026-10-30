@@ -181,6 +181,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "axum",
+ "client-core",
  "glossary",
  "hex",
  "model-router",
@@ -191,6 +192,7 @@ dependencies = [
  "tokio-stream",
  "tower",
  "translator",
+ "validators",
 ]
 
 [[package]]

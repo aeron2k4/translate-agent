@@ -23,7 +23,7 @@ pub enum Kind {
 }
 
 /// Một đoạn trong tin được thay bằng `token` trước khi gửi mô hình.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Entity {
     pub token: String,
     pub kind: Kind,

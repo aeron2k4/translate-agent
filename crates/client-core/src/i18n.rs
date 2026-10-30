@@ -31,6 +31,11 @@ pub fn t(key: &str, locale: &str, params: &[(&str, &str)]) -> String {
     s
 }
 
+/// Toàn bộ chuỗi của một locale (cho client web/dev tải một lần).
+pub fn catalog(locale: &str) -> Option<&'static HashMap<String, String>> {
+    CATALOGS.get(locale)
+}
+
 pub fn locales() -> impl Iterator<Item = &'static str> {
     CATALOGS.keys().copied()
 }

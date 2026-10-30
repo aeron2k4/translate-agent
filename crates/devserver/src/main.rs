@@ -9,6 +9,16 @@
 //! - GET  /v1/threads/{thread}/messages/{message}/corrected?lang=en
 //! - POST /v1/threads/{thread}/close
 //! - POST /v1/threads/{thread}/members/{member}/leave
+//!
+//! Chat playground (giao diện test trực quan, `apps/chat-playground/`):
+//! - GET  /  và  /static/{file}     (đọc từ đĩa mỗi lần, sửa xong chỉ cần reload)
+//! - GET  /v1/i18n/{locale}
+//! - POST /v1/dev/filter            (mô phỏng bước 1 chạy trên client)
+//! - POST /v1/dev/inspect           (xem tin sau khi che thực thể)
+//! - GET  /v1/dev/samples           (tin mẫu từ golden dataset tổng hợp)
+//!
+//! Các endpoint /v1/dev/* trả lại nội dung đã che — CHỈ có trong devserver,
+//! không bao giờ đưa vào service thật.
 
 mod enclave;
 
@@ -32,6 +42,7 @@ use translator::hitl::Correction;
 use translator::{Request, Secrets, StreamEvent, Translator};
 
 struct AppState {
+    repo: PathBuf,
     translator: Translator,
     enclave: Box<dyn Enclave>,
     /// Đề xuất cho đơn vị (chỉ cặp thuật ngữ + ví dụ đã ẩn danh), JSONL cho
@@ -145,8 +156,116 @@ async fn leave(
     StatusCode::NO_CONTENT
 }
 
+/// File tĩnh được phép phục vụ (không nhận đường dẫn tuỳ ý).
+const PLAYGROUND_FILES: &[(&str, &str)] = &[
+    ("index.html", "text/html; charset=utf-8"),
+    ("app.js", "text/javascript; charset=utf-8"),
+    ("style.css", "text/css; charset=utf-8"),
+];
+
+async fn serve_file(state: &AppState, name: &str) -> Response {
+    let Some((file, mime)) = PLAYGROUND_FILES.iter().find(|(f, _)| *f == name) else {
+        return error(StatusCode::NOT_FOUND, "not_found");
+    };
+    let path = state.repo.join("apps/chat-playground").join(file);
+    match tokio::fs::read(path).await {
+        Ok(bytes) => (
+            [("content-type", *mime), ("cache-control", "no-store")],
+            bytes,
+        )
+            .into_response(),
+        Err(_) => error(StatusCode::NOT_FOUND, "not_found"),
+    }
+}
+
+async fn index(State(state): State<Shared>) -> Response {
+    serve_file(&state, "index.html").await
+}
+
+async fn static_file(State(state): State<Shared>, Path(name): Path<String>) -> Response {
+    serve_file(&state, &name).await
+}
+
+async fn i18n(Path(locale): Path<String>) -> Response {
+    match client_core::i18n::catalog(&locale) {
+        Some(c) => Json(c).into_response(),
+        None => error(StatusCode::NOT_FOUND, "unknown_locale"),
+    }
+}
+
+#[derive(Deserialize)]
+struct FilterBody {
+    text: String,
+    reader_lang: String,
+}
+
+/// Mô phỏng bước 1 (lọc nhanh) vốn chạy trên thiết bị.
+async fn dev_filter(Json(b): Json<FilterBody>) -> Response {
+    Json(client_core::should_translate(&b.text, &b.reader_lang)).into_response()
+}
+
+#[derive(Deserialize)]
+struct InspectBody {
+    text: String,
+    source_lang: String,
+}
+
+/// Tin sau khi che thực thể và dạng render của từng thực thể. Chỉ dùng trong dev.
+async fn dev_inspect(Json(b): Json<InspectBody>) -> Response {
+    let masked = validators::mask(&b.text, &b.source_lang);
+    let entities: Vec<serde_json::Value> = masked
+        .entities
+        .iter()
+        .map(|e| {
+            json!({
+                "entity": e,
+                "pii": e.is_pii(),
+                "render": { "vi": e.render("vi"), "en": e.render("en") },
+            })
+        })
+        .collect();
+    Json(json!({ "masked": masked.text, "entities": entities })).into_response()
+}
+
+/// Tin mẫu từ golden dataset (dữ liệu tổng hợp).
+async fn dev_samples(State(state): State<Shared>) -> Response {
+    let dir = state.repo.join("eval/datasets");
+    let mut samples = Vec::new();
+    let Ok(mut entries) = tokio::fs::read_dir(&dir).await else {
+        return Json(samples).into_response();
+    };
+    let mut files = Vec::new();
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("golden.") && name.ends_with(".jsonl") {
+            files.push(entry.path());
+        }
+    }
+    files.sort();
+    for path in files {
+        let Ok(raw) = tokio::fs::read_to_string(&path).await else {
+            continue;
+        };
+        for line in raw.lines() {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                samples.push(json!({
+                    "id": v["id"], "text": v["text"],
+                    "source_lang": v["source_lang"], "tags": v["tags"],
+                }));
+            }
+        }
+    }
+    Json(samples).into_response()
+}
+
 fn app(state: Shared) -> Router {
     Router::new()
+        .route("/", get(index))
+        .route("/static/{file}", get(static_file))
+        .route("/v1/i18n/{locale}", get(i18n))
+        .route("/v1/dev/filter", post(dev_filter))
+        .route("/v1/dev/inspect", post(dev_inspect))
+        .route("/v1/dev/samples", get(dev_samples))
         .route("/healthz", get(|| async { "ok" }))
         .route(
             "/v1/attestation",
@@ -195,6 +314,7 @@ fn build_state(repo: &std::path::Path, suggestions: Option<PathBuf>) -> Result<A
         None => None,
     };
     Ok(AppState {
+        repo: repo.to_path_buf(),
         translator: Translator::new(Arc::new(store), Arc::new(router), sink, &secrets),
         enclave: Box::new(MockEnclave::new(*b"xt-dev-only-key-not-for-prod!!!!")),
         suggestions: Mutex::new(suggestions),
@@ -217,6 +337,7 @@ async fn main() {
             std::process::exit(2)
         });
     eprintln!("devserver (mock enclave, provider giả) đang chạy ở http://{addr}");
+    eprintln!("chat playground: http://{addr}/");
     if let Err(e) = axum::serve(listener, app(Arc::new(state))).await {
         eprintln!("devserver: {e}");
     }
@@ -301,6 +422,79 @@ mod tests {
             .collect();
         assert_eq!(lines.last().unwrap()["type"], "done");
         assert!(lines.iter().any(|l| l["type"] == "delta"));
+    }
+
+    async fn get(app: Router, uri: &str) -> (StatusCode, String) {
+        let res = app
+            .oneshot(HttpRequest::get(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        (status, String::from_utf8_lossy(&bytes).into_owned())
+    }
+
+    #[tokio::test]
+    async fn static_serving_only_allows_listed_files() {
+        let (app, _) = test_app();
+        for uri in [
+            "/static/Cargo.toml",
+            "/static/..%2F..%2FCargo.toml",
+            "/static/..",
+        ] {
+            assert_eq!(
+                get(app.clone(), uri).await.0,
+                StatusCode::NOT_FOUND,
+                "{uri}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn i18n_catalogs() {
+        let (app, _) = test_app();
+        let (status, body) = get(app.clone(), "/v1/i18n/vi").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Thử dịch lại"));
+        assert_eq!(get(app, "/v1/i18n/xx").await.0, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn dev_filter_and_inspect() {
+        let (app, _) = test_app();
+        let (_, body) = post_json(
+            app.clone(),
+            "/v1/dev/filter",
+            json!({"text": "😂😂", "reader_lang": "en"}),
+        )
+        .await;
+        assert_eq!(body, r#"{"action":"skip","reason":"emoji_only"}"#);
+        let (_, body) = post_json(
+            app,
+            "/v1/dev/inspect",
+            json!({"text": "coc 5 cu, goi 0900000001", "source_lang": "vi"}),
+        )
+        .await;
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["masked"], "coc ⟦E1⟧, goi ⟦E2⟧");
+        assert_eq!(v["entities"][0]["render"]["en"], "5 million VND");
+        assert_eq!(v["entities"][1]["entity"]["kind"], "phone");
+        assert_eq!(v["entities"][1]["pii"], true);
+    }
+
+    #[tokio::test]
+    async fn dev_samples_come_from_golden_dataset() {
+        let (app, _) = test_app();
+        let (status, body) = get(app, "/v1/dev/samples").await;
+        assert_eq!(status, StatusCode::OK);
+        let v: Vec<serde_json::Value> = serde_json::from_str(&body).unwrap();
+        assert!(v.len() > 100);
+        assert!(
+            v.iter()
+                .all(|s| s["id"].as_str().unwrap().starts_with("golden-"))
+        );
     }
 
     #[tokio::test]
