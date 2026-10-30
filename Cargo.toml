@@ -17,6 +17,7 @@ regex = "1"
 textnorm = { path = "crates/textnorm" }
 validators = { path = "crates/validators" }
 telemetry = { path = "crates/telemetry" }
+glossary = { path = "crates/glossary" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

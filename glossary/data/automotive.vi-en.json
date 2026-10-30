@@ -1,0 +1,32 @@
+{
+  "domain": "automotive",
+  "langs": ["vi", "en"],
+  "version": 1,
+  "terms": [
+    {"id": "auto-001", "vi": "lái thử", "en": "test drive", "core": true, "example": "Anh muốn đăng ký lái thử cuối tuần này."},
+    {"id": "auto-002", "vi": "đặt cọc", "en": "deposit", "core": true, "example": "Chị đặt cọc trước để giữ xe nhé."},
+    {"id": "auto-003", "vi": "giá lăn bánh", "en": "on-the-road price", "core": true, "example": "Giá lăn bánh đã gồm phí trước bạ."},
+    {"id": "auto-004", "vi": "trạm sạc", "en": "charging station", "core": true, "example": "Gần nhà em có trạm sạc không?"},
+    {"id": "auto-005", "vi": "sạc nhanh", "en": "fast charging", "core": false, "example": "Xe hỗ trợ sạc nhanh."},
+    {"id": "auto-006", "vi": "thuê pin", "en": "battery subscription", "core": true, "example": "Gói thuê pin tính theo tháng."},
+    {"id": "auto-007", "vi": "bảo dưỡng", "en": "maintenance", "core": true, "example": "Xe đến hạn bảo dưỡng định kỳ."},
+    {"id": "auto-008", "vi": "bảo hành", "en": "warranty", "core": true, "example": "Pin được bảo hành dài hạn."},
+    {"id": "auto-009", "vi": "đăng kiểm", "en": "vehicle inspection", "core": false, "example": "Xe mới được miễn đăng kiểm lần đầu."},
+    {"id": "auto-010", "vi": "biển số", "en": "license plate", "core": false, "example": "Bên em hỗ trợ bấm biển số."},
+    {"id": "auto-011", "vi": "lệ phí trước bạ", "en": "registration tax", "core": false, "example": "Lệ phí trước bạ tuỳ tỉnh thành."},
+    {"id": "auto-012", "vi": "trả góp", "en": "installment plan", "core": true, "example": "Anh có muốn mua trả góp không?"},
+    {"id": "auto-013", "vi": "lãi suất", "en": "interest rate", "core": false, "example": "Lãi suất cố định năm đầu."},
+    {"id": "auto-014", "vi": "hợp đồng mua bán", "en": "sales contract", "core": false, "example": "Em gửi anh hợp đồng mua bán để xem trước."},
+    {"id": "auto-015", "vi": "giao xe", "en": "vehicle handover", "core": true, "example": "Lịch giao xe dự kiến cuối tháng."},
+    {"id": "auto-016", "vi": "xe điện", "en": "electric vehicle", "core": true, "example": "Xe điện không tốn tiền xăng."},
+    {"id": "auto-017", "vi": "quãng đường di chuyển", "en": "driving range", "core": false, "example": "Quãng đường di chuyển mỗi lần sạc khá xa."},
+    {"id": "auto-018", "vi": "cốp xe", "en": "trunk", "core": false, "example": "Cốp xe rộng rãi."},
+    {"id": "auto-019", "vi": "gương chiếu hậu", "en": "side mirror", "core": false, "example": "Gương chiếu hậu gập điện."},
+    {"id": "auto-020", "vi": "tư vấn bán hàng", "en": "sales consultant", "core": false, "example": "Em là tư vấn bán hàng của showroom."},
+    {"id": "auto-021", "vi": "xe lướt", "en": "lightly used car", "core": false, "example": "Bên em cũng có xe lướt giá tốt."},
+    {"id": "auto-022", "vi": "ưu đãi", "en": "promotion", "core": false, "example": "Tháng này có ưu đãi cho khách đặt sớm."},
+    {"id": "auto-023", "vi": "bảo hiểm thân vỏ", "en": "physical damage insurance", "core": false, "example": "Bảo hiểm thân vỏ được tặng năm đầu."},
+    {"id": "auto-024", "vi": "phanh", "en": "brakes", "core": false, "example": "Phanh hơi kêu khi đi chậm."},
+    {"id": "auto-025", "vi": "lốp", "en": "tire", "core": false, "example": "Lốp sau bị non hơi."}
+  ]
+}
