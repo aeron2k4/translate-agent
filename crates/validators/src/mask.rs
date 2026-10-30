@@ -105,7 +105,12 @@ static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
             Kind::Date,
             "[0-9]{1,2}/[0-9]{1,2}(?:/[0-9]{4}|/[0-9]{2})?".into(),
         ),
-        (Kind::Time, "[0-9]{1,2}[hg](?:[0-5][0-9])?".into()),
+        // 9h30 / 14h (Việt), 9:30 / 9:30pm / 6 pm (Anh).
+        (
+            Kind::Time,
+            r"(?:[01]?[0-9]|2[0-3]):[0-5][0-9](?:\s?(?i:am|pm))?|(?:1[0-2]|0?[1-9])\s?(?i:am|pm)|[0-9]{1,2}[hg](?:[0-5][0-9])?"
+                .into(),
+        ),
         (Kind::ProductCode, "[A-Z]{1,4}-?[0-9]{1,4}[A-Z]{0,2}".into()),
         (
             Kind::Number,
@@ -248,6 +253,10 @@ mod tests {
             ("gia 1,5 ty", Kind::Money, "1,5 ty"),
             ("hẹn 9h30 sáng", Kind::Time, "9h30"),
             ("mở đến 14h", Kind::Time, "14h"),
+            ("hẹn 9:30 sáng", Kind::Time, "9:30"),
+            ("test drive at 9:30 tomorrow", Kind::Time, "9:30"),
+            ("pick up at 2:15pm", Kind::Time, "2:15pm"),
+            ("open until 6 pm today", Kind::Time, "6 pm"),
             ("2h nữa giao", Kind::Number, "2h"),
             ("mất 3h thôi", Kind::Number, "3h"),
             ("biển 51A-123.45 ạ", Kind::Plate, "51A-123.45"),

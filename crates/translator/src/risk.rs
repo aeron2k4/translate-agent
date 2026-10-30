@@ -154,6 +154,9 @@ mod tests {
         assert!(ask("cọc 2 xe luôn", "vi").is_none());
         assert!(ask("3 ngày nữa giao", "vi").is_none());
         assert!(ask("gia 2000 la sao", "vi").is_none());
+        // Giờ không phải số tiền.
+        let en = "Your test drive is at 9:30 tomorrow, and the deposit is fully refundable.";
+        assert!(ask(en, "en").is_none());
     }
 
     #[test]
