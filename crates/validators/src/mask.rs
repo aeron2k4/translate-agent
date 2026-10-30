@@ -16,6 +16,8 @@ pub enum Kind {
     Plate,
     Money,
     Date,
+    /// Giờ kiểu Việt: "9h30", "14h".
+    Time,
     ProductCode,
     Number,
 }
@@ -58,8 +60,11 @@ impl Masked {
 }
 
 pub(crate) const NUM: &str = r"[0-9]+(?:[.,][0-9]+)*";
-pub(crate) const VI_SCALE: &str = "tỷ|tỉ|tỏi|triệu|tr|củ|nghìn|ngàn|k";
-pub(crate) const VI_CURRENCY: &str = "đồng|vnđ|vnd|đ";
+// Có cả dạng không dấu: "cu" = củ (triệu), "toi" = tỏi (tỷ). Thứ tự quan trọng:
+// dạng dài đứng trước dạng ngắn ("triệu" trước "tr", "dong" trước "d").
+pub(crate) const VI_SCALE: &str =
+    "tỷ|tỉ|tỏi|triệu|trieu|tr|củ|nghìn|ngàn|nghin|ngan|ty|ti|toi|cu|k";
+pub(crate) const VI_CURRENCY: &str = "đồng|dong|vnđ|vnd|đ|d";
 
 struct Rule {
     kind: Kind,
@@ -100,6 +105,7 @@ static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
             Kind::Date,
             "[0-9]{1,2}/[0-9]{1,2}(?:/[0-9]{4}|/[0-9]{2})?".into(),
         ),
+        (Kind::Time, "[0-9]{1,2}[hg](?:[0-5][0-9])?".into()),
         (Kind::ProductCode, "[A-Z]{1,4}-?[0-9]{1,4}[A-Z]{0,2}".into()),
         (
             Kind::Number,
@@ -122,6 +128,19 @@ fn is_word(c: char) -> bool {
     c.is_alphanumeric()
 }
 
+/// "2h nữa", "mất 2h", "trong 2h": khoảng thời gian, không phải giờ trên đồng hồ.
+fn is_duration(text: &str, s: usize, e: usize) -> bool {
+    let before = textnorm::words(&text[..s])
+        .pop()
+        .map(|w| textnorm::fold(&w));
+    let after = textnorm::words(&text[e..])
+        .into_iter()
+        .next()
+        .map(|w| textnorm::fold(&w));
+    matches!(before.as_deref(), Some("trong" | "mat"))
+        || matches!(after.as_deref(), Some("nua" | "tieng"))
+}
+
 /// Che mọi thực thể trong `text`. `source_lang` ("vi"/"en") quyết định cách đọc
 /// dấu phân cách số và ngày khi render sang ngôn ngữ đích.
 pub fn mask(text: &str, source_lang: &str) -> Masked {
@@ -142,7 +161,12 @@ pub fn mask(text: &str, source_lang: &str) -> Masked {
                 || text[..s].chars().next_back().is_none_or(|c| !is_word(c));
             let free = spans.iter().all(|&(a, b, _)| e <= a || b <= s);
             if lead_ok && e > s && free {
-                spans.push((s, e, rule.kind));
+                let kind = if rule.kind == Kind::Time && is_duration(text, s, e) {
+                    Kind::Number
+                } else {
+                    rule.kind
+                };
+                spans.push((s, e, kind));
                 pos = e;
             } else {
                 pos = s + text[s..].chars().next().map_or(1, char::len_utf8);
@@ -217,6 +241,15 @@ mod tests {
             ("phí 1.200.000đ", Kind::Money, "1.200.000đ"),
             ("price $1,200 ok", Kind::Money, "$1,200"),
             ("hẹn 15/11 nhé", Kind::Date, "15/11"),
+            ("coc 5 cu nhe", Kind::Money, "5 cu"),
+            ("tam 2 toi", Kind::Money, "2 toi"),
+            ("lan banh 30 trieu", Kind::Money, "30 trieu"),
+            ("phi 850.000d nhe", Kind::Money, "850.000d"),
+            ("gia 1,5 ty", Kind::Money, "1,5 ty"),
+            ("hẹn 9h30 sáng", Kind::Time, "9h30"),
+            ("mở đến 14h", Kind::Time, "14h"),
+            ("2h nữa giao", Kind::Number, "2h"),
+            ("mất 3h thôi", Kind::Number, "3h"),
             ("biển 51A-123.45 ạ", Kind::Plate, "51A-123.45"),
             ("biển 30E-12345 ạ", Kind::Plate, "30E-12345"),
             ("CCCD 001203004567", Kind::Cccd, "001203004567"),

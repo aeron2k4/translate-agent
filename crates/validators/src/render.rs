@@ -13,6 +13,7 @@ impl Entity {
         let out = match self.kind {
             Kind::Money => render_money(&self.source, from, target),
             Kind::Date => render_date(&self.source, from, target),
+            Kind::Time => render_time(&self.source, target),
             Kind::Number => render_number(&self.source, from, target),
             _ => None,
         };
@@ -101,9 +102,9 @@ static MONEY_EN_VND: LazyLock<Regex> = LazyLock::new(|| {
 
 fn vi_scale(word: &str) -> f64 {
     match word.to_lowercase().as_str() {
-        "tỷ" | "tỉ" | "tỏi" => 1e9,
-        "triệu" | "tr" | "củ" => 1e6,
-        "nghìn" | "ngàn" | "k" => 1e3,
+        "tỷ" | "tỉ" | "tỏi" | "ty" | "ti" | "toi" => 1e9,
+        "triệu" | "trieu" | "tr" | "củ" | "cu" => 1e6,
+        "nghìn" | "ngàn" | "nghin" | "ngan" | "k" => 1e3,
         _ => 1.0,
     }
 }
@@ -173,6 +174,17 @@ fn format_vnd_english(lo: f64, hi: f64) -> String {
     }
 }
 
+/// "9h30" → "9:30", "14h" → "14:00". Tiếng Việt giữ nguyên.
+fn render_time(src: &str, to: &str) -> Option<String> {
+    if to != "en" {
+        return None;
+    }
+    let (h, m) = src.split_once(['h', 'g'])?;
+    let hour: u32 = h.parse().ok()?;
+    let minute: u32 = if m.is_empty() { 0 } else { m.parse().ok()? };
+    (hour < 24 && minute < 60).then(|| format!("{hour}:{minute:02}"))
+}
+
 const MONTHS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
@@ -236,6 +248,30 @@ mod tests {
         ] {
             assert_eq!(ent(Kind::Money, src, "vi").render("en"), want, "{src}");
         }
+    }
+
+    #[test]
+    fn unaccented_money_slang() {
+        for (src, want) in [
+            ("5 cu", "5 million VND"),
+            ("2 toi", "2 billion VND"),
+            ("30 trieu", "30 million VND"),
+            ("1,5 ty", "1.5 billion VND"),
+            ("850.000d", "850,000 VND"),
+            ("5-7 trieu", "5–7 million VND"),
+            ("200 nghin dong", "200,000 VND"),
+        ] {
+            assert_eq!(ent(Kind::Money, src, "vi").render("en"), want, "{src}");
+        }
+    }
+
+    #[test]
+    fn times() {
+        assert_eq!(ent(Kind::Time, "9h30", "vi").render("en"), "9:30");
+        assert_eq!(ent(Kind::Time, "14h", "vi").render("en"), "14:00");
+        assert_eq!(ent(Kind::Time, "8g05", "vi").render("en"), "8:05");
+        assert_eq!(ent(Kind::Time, "25h", "vi").render("en"), "25h");
+        assert_eq!(ent(Kind::Time, "9h30", "vi").render("vi"), "9h30");
     }
 
     #[test]
