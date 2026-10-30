@@ -6,9 +6,18 @@ publish.workspace = true
 
 [dependencies]
 serde.workspace = true
+tokio.workspace = true
 textnorm.workspace = true
 validators.workspace = true
 prompts.workspace = true
+glossary.workspace = true
+model-router.workspace = true
+phrase-cache.workspace = true
+telemetry.workspace = true
+client-core.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [lints]
 workspace = true

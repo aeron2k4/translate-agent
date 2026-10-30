@@ -2,4 +2,9 @@
 //! này: không ghi đĩa, không đưa vào queue, không gửi sang service khác, không log.
 
 pub mod memory;
+pub mod mock;
+pub mod pipeline;
 pub mod risk;
+mod stream;
+
+pub use pipeline::{Request, Response, Secrets, Status, StreamEvent, Translation, Translator};
