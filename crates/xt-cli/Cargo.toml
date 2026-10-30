@@ -9,7 +9,7 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 glossary.workspace = true
-model-router.workspace = true
+model-router = { workspace = true, features = ["http"] }
 telemetry.workspace = true
 translator.workspace = true
 

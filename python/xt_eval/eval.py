@@ -152,20 +152,48 @@ def comet_score(cases: list[dict], results: dict[str, dict]) -> float | None:
     return float(proc.stdout.strip().splitlines()[-1])
 
 
+def dump(path: Path, cases: list[dict], results: dict[str, dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for c in cases:
+            tr = results[c["id"]]["response"]["translations"][0]
+            row = {
+                "id": c["id"],
+                "tags": c.get("tags", []),
+                "src": c["text"],
+                "mt": tr["text"],
+                "ref": c.get("reference"),
+                "status": tr["status"],
+                "tier": tr["tier"],
+                "issues": tr["issues"],
+            }
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="xt_eval.eval")
     ap.add_argument("--cli", required=True)
     ap.add_argument("--dataset", type=Path, default=cli.REPO / "eval" / "datasets")
+    ap.add_argument(
+        "--dump",
+        type=Path,
+        help="ghi từng ca (nguồn, bản dịch, tham chiếu) ra JSONL để phân tích lỗi; "
+        "chỉ dùng với dataset tổng hợp",
+    )
     args = ap.parse_args(argv)
 
     cases = [c for f in sorted(args.dataset.glob("*.jsonl")) for c in cli.load_jsonl(f)]
     results = cli.run(args.cli, ((c["id"], to_request(c)) for c in cases))
     report = score(cases, results)
     report.comet = comet_score(cases, results)
+    if args.dump:
+        dump(args.dump, cases, results)
     print(json.dumps(report.summary(), ensure_ascii=False, indent=2))
     if report.comet is None:
         print("COMET: chưa đo (đặt XT_COMET_CMD để đo).", file=sys.stderr)
-    print("Provider giả: số đo chỉ kiểm tra cơ chế, không phải chất lượng dịch.", file=sys.stderr)
+    if cli.models_config().name == "models.toml":
+        note = "Provider giả: số đo chỉ kiểm tra cơ chế, không phải chất lượng dịch."
+        print(note, file=sys.stderr)
     return 0 if all(report.gates().values()) else 1
 
 

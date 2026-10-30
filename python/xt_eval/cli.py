@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+def models_config() -> Path:
+    """Cấu hình mô hình: `XT_MODELS_CONFIG` (tương đối với repo) hoặc provider giả."""
+    return REPO / os.environ.get("XT_MODELS_CONFIG", "config/models.toml")
 
 
 def run(
@@ -25,7 +31,7 @@ def run(
         "--glossary-dir",
         str(REPO / "glossary" / "data"),
         "--config",
-        str(REPO / "config" / "models.toml"),
+        str(models_config()),
     ]
     if audit:
         args.append("--audit")

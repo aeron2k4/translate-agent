@@ -8,7 +8,7 @@
 //!             "audit": {"prompts": [{"prefix": "...", "body": "..."}]}}
 
 use glossary::Store;
-use model_router::{Config, MockProvider, Registry, Router};
+use model_router::{Config, MockProvider, OpenAiCompat, Registry, Router};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{BufRead, Write};
@@ -101,6 +101,12 @@ async fn main() {
     }));
     let mut registry = Registry::default();
     registry.register("mock", Box::new(move |_| provider.clone()));
+    // Mô hình thật (eval chất lượng): --config trỏ tới file cấu hình local. Chế độ
+    // --audit chỉ ghi prompt của provider giả.
+    registry.register(
+        "openai_compatible",
+        Box::new(|pc| Arc::new(OpenAiCompat::from_config(pc))),
+    );
     let router = Router::new(&cfg, &registry).unwrap_or_else(|e| fail(&e.to_string()));
 
     let sink: Arc<dyn Sink> = match &args.telemetry {
