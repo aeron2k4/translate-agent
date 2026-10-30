@@ -23,7 +23,7 @@
 | Metric | p50 | p95 | Target p50 / p95 |
 | --- | --- | --- | --- |
 | TTFT (ms) | 0.3 | 0.5 | 400 / 1200 |
-| Full translation (ms) | 0.4 | 0.7 | – / 2000 |
+| Full translation (ms) | 0.4 | 0.6 | – / 2000 |
 
 Model calls: 213, cache hits: 0, errors: 0.
 
