@@ -18,6 +18,7 @@ textnorm = { path = "crates/textnorm" }
 validators = { path = "crates/validators" }
 telemetry = { path = "crates/telemetry" }
 glossary = { path = "crates/glossary" }
+client-core = { path = "crates/client-core" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

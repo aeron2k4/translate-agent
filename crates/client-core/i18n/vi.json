@@ -1,0 +1,15 @@
+{
+  "translation.by_ai": "Đã dịch bởi AI",
+  "translation.edited_by_human": "Đã chỉnh bởi người",
+  "translation.view_original": "Xem bản gốc",
+  "translation.view_translation": "Xem bản dịch",
+  "translation.translating": "Đang dịch…",
+  "translation.failed_retry": "Thử dịch lại",
+  "translation.edit": "Sửa bản dịch",
+  "correction.scope.me": "Chỉ mình tôi",
+  "correction.scope.group": "Cả nhóm",
+  "correction.scope.unit": "Đề xuất cho đơn vị",
+  "clarify.date_order": "Ngày \"{value}\" là ngày {a} tháng {b} hay ngày {b} tháng {a}?",
+  "clarify.amount_unit": "Số tiền \"{value}\" tính theo đơn vị nào (nghìn, triệu…)?",
+  "clarify.send_anyway": "Gửi bản dịch như hiện tại"
+}

@@ -1,0 +1,15 @@
+{
+  "translation.by_ai": "Translated by AI",
+  "translation.edited_by_human": "Edited by a person",
+  "translation.view_original": "View original",
+  "translation.view_translation": "View translation",
+  "translation.translating": "Translating…",
+  "translation.failed_retry": "Retry translation",
+  "translation.edit": "Edit translation",
+  "correction.scope.me": "Only me",
+  "correction.scope.group": "This group",
+  "correction.scope.unit": "Suggest to my unit",
+  "clarify.date_order": "Does \"{value}\" mean month {a}, day {b} or day {a}, month {b}?",
+  "clarify.amount_unit": "Which unit is \"{value}\" in (thousand, million…)?",
+  "clarify.send_anyway": "Send the translation as is"
+}
