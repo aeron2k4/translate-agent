@@ -1,0 +1,24 @@
+[package]
+name = "devserver"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+aes-gcm.workspace = true
+axum.workspace = true
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+glossary.workspace = true
+model-router.workspace = true
+telemetry.workspace = true
+translator.workspace = true
+
+[dev-dependencies]
+tower.workspace = true
+
+[lints]
+workspace = true

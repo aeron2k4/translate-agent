@@ -16,6 +16,9 @@ hex = "0.4"
 aes-gcm = "0.10"
 regex = "1"
 toml = "0.8"
+axum = "0.8"
+tokio-stream = "0.1"
+tower = { version = "0.5", features = ["util"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 textnorm = { path = "crates/textnorm" }
 validators = { path = "crates/validators" }

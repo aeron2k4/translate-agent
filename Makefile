@@ -3,7 +3,7 @@ VENV  ?= .venv
 PY    := $(abspath $(VENV))/bin/python
 RUFF  := $(abspath $(VENV))/bin/ruff
 
-.PHONY: venv test lint fmt eval redteam cli
+.PHONY: venv dev test lint fmt eval redteam cli
 
 ## make venv: tạo .venv và cài công cụ dev Python (pytest, ruff)
 venv: $(VENV)/.installed
@@ -12,6 +12,10 @@ $(VENV)/.installed: python/requirements-dev.txt
 	python3 -m venv $(VENV)
 	$(PY) -m pip install -q --disable-pip-version-check -r python/requirements-dev.txt
 	touch $@
+
+## make dev: chạy local toàn bộ pipeline (không TEE, mock enclave, provider giả)
+dev:
+	$(CARGO) run --quiet -p devserver
 
 ## make test: unit + integration (Rust + Python)
 test: venv
