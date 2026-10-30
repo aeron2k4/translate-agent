@@ -22,6 +22,7 @@ telemetry = { path = "crates/telemetry" }
 glossary = { path = "crates/glossary" }
 client-core = { path = "crates/client-core" }
 model-router = { path = "crates/model-router" }
+prompts = { path = "crates/prompts" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

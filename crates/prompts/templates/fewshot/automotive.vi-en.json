@@ -1,0 +1,20 @@
+[
+  {
+    "source_lang": "vi",
+    "source": "a oi xe nay lan banh het bao nhieu a, e muon dat coc ⟦E1⟧ truoc",
+    "target": "Hi, what's the on-the-road price for this car? I'd like to put down a ⟦E1⟧ deposit first.",
+    "approved_by": "glossary-owner-automotive"
+  },
+  {
+    "source_lang": "en",
+    "source": "Can I book a test drive on ⟦E1⟧ at ⟦E2⟧?",
+    "target": "Em có thể đặt lịch lái thử vào ⟦E1⟧ lúc ⟦E2⟧ không ạ?",
+    "approved_by": "glossary-owner-automotive"
+  },
+  {
+    "source_lang": "vi",
+    "source": "Chưa duyệt — không được dùng làm few-shot.",
+    "target": "Not approved — must not be used.",
+    "approved_by": null
+  }
+]
