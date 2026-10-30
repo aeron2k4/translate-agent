@@ -25,6 +25,7 @@ client-core = { path = "crates/client-core" }
 model-router = { path = "crates/model-router" }
 prompts = { path = "crates/prompts" }
 phrase-cache = { path = "crates/phrase-cache" }
+translator = { path = "crates/translator" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
