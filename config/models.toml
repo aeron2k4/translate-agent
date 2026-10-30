@@ -1,0 +1,27 @@
+# Cấu hình định tuyến mô hình. Tên mô hình CHỈ được khai báo ở đây.
+#
+# Thêm nhà cung cấp mới cần duyệt của bảo mật/pháp chế. Router từ chối khởi
+# động nếu một nhà cung cấp không có `no_retention = true` và `approved = true`.
+# `external = false` nghĩa là chạy tự host / trên thiết bị (dùng cho tầng dự phòng
+# và các hội thoại cấm gửi ra ngoài).
+
+[providers.mock]
+kind = "mock"
+no_retention = true
+approved = true
+external = false
+
+[tiers.fast]
+provider = "mock"
+model = "mock-fast"
+timeout_ms = 2000
+
+[tiers.strong]
+provider = "mock"
+model = "mock-strong"
+timeout_ms = 5000
+
+[tiers.fallback]
+provider = "mock"
+model = "mock-mt"
+timeout_ms = 2000
