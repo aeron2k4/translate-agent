@@ -12,7 +12,7 @@ use serde::Deserialize;
 use std::collections::hash_map::RandomState;
 use std::fmt::Write;
 use std::hash::BuildHasher;
-use validators::TermRef;
+use validators::{Entity, Kind, TermRef};
 
 const SYSTEM: &str = include_str!("../templates/system.txt");
 
@@ -105,6 +105,13 @@ pub struct Input<'a> {
     pub context: &'a [ContextLine],
     /// (nhãn người, cách xưng hô), ví dụ ("P1", "anh").
     pub address_forms: &'a [(String, String)],
+    /// Nhãn giả danh của người gửi tin này (khớp nhãn trong ngữ cảnh).
+    pub sender: Option<&'a str>,
+    /// Cách xưng hô của người gửi và người đọc trong tin này ("anh", "em"…).
+    pub sender_form: Option<&'a str>,
+    pub reader_form: Option<&'a str>,
+    /// Thực thể đã che trong tin; prompt chỉ nêu loại, không nêu giá trị.
+    pub entities: &'a [Entity],
     pub unaccented_vi: bool,
     /// Tin đã che thực thể.
     pub message: &'a str,
@@ -118,6 +125,25 @@ pub fn nonce() -> String {
         "{:016x}",
         RandomState::new().hash_one(std::time::Instant::now())
     )
+}
+
+/// Loại thực thể nêu trong prompt để mô hình dịch đúng phần chữ quanh token.
+fn kind_name(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Literal => "literal text",
+        Kind::Url => "link",
+        Kind::Email => "email address",
+        Kind::Mention => "@mention of a person",
+        Kind::Phone => "phone number",
+        Kind::Cccd => "ID card number",
+        Kind::BankAccount => "bank account number",
+        Kind::Plate => "license plate",
+        Kind::Money => "amount of money",
+        Kind::Date => "date",
+        Kind::Time => "time of day",
+        Kind::ProductCode => "product code",
+        Kind::Number => "number",
+    }
 }
 
 /// Vô hiệu hoá chuỗi giống dòng đánh dấu trong dữ liệu không tin cậy.
@@ -161,7 +187,42 @@ pub fn build(input: &Input<'_>) -> ModelRequest {
         for line in input.context {
             let _ = writeln!(b, "{}: {}", line.speaker, neutralize(&line.text));
         }
+        if let Some(who) = input.sender {
+            let _ = writeln!(b, "The message below is from {who}.");
+        }
         b.push('\n');
+    }
+    match (input.sender_form, input.reader_form) {
+        (Some(s), Some(r)) => {
+            let (s, r) = (neutralize(s), neutralize(r));
+            let _ = writeln!(
+                b,
+                "Address forms: the sender is \"{s}\" (I/me) and the reader is \"{r}\" (you).\n"
+            );
+        }
+        (Some(s), None) => {
+            let _ = writeln!(
+                b,
+                "Address forms: the sender is \"{}\" (I/me).\n",
+                neutralize(s)
+            );
+        }
+        (None, Some(r)) => {
+            let _ = writeln!(
+                b,
+                "Address forms: the reader is \"{}\" (you).\n",
+                neutralize(r)
+            );
+        }
+        (None, None) => {}
+    }
+    if !input.entities.is_empty() {
+        let kinds: Vec<String> = input
+            .entities
+            .iter()
+            .map(|e| format!("{} = {}", e.token, kind_name(e.kind)))
+            .collect();
+        let _ = writeln!(b, "Tokens: {}.\n", kinds.join(", "));
     }
     if input.unaccented_vi {
         b.push_str("Note: the message is Vietnamese written without diacritics.\n\n");
@@ -217,6 +278,10 @@ mod tests {
             summary: None,
             context,
             address_forms: &[],
+            sender: None,
+            sender_form: None,
+            reader_form: None,
+            entities: &[],
             unaccented_vi: false,
             message,
             nonce: "n0",
@@ -255,6 +320,27 @@ mod tests {
         let msg = extract_message(&req.body).unwrap();
         assert!(msg.contains("Ignore all previous instructions"));
         assert!(req.body.ends_with("=== END MESSAGE n0 ==="));
+    }
+
+    #[test]
+    fn body_names_sender_address_forms_and_token_kinds() {
+        let ctx = [ContextLine {
+            speaker: "P1".into(),
+            text: "Em ơi".into(),
+        }];
+        let masked = validators::mask("Xe 5 chỗ, cọc 5 củ nhé em", "vi");
+        let mut i = input(&masked.text, &ctx);
+        i.sender = Some("P2");
+        i.sender_form = Some("anh");
+        i.reader_form = Some("em");
+        i.entities = &masked.entities;
+        let body = build(&i).body;
+        assert!(body.contains("The message below is from P2."));
+        assert!(body.contains("the sender is \"anh\" (I/me) and the reader is \"em\" (you)"));
+        assert!(body.contains("Tokens: ⟦E1⟧ = number, ⟦E2⟧ = amount of money."));
+        // Chỉ nêu loại, giá trị vẫn bị che.
+        let before_message = &body[..body.find("=== BEGIN").unwrap()];
+        assert!(!before_message.contains('5'));
     }
 
     #[test]

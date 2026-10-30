@@ -1,6 +1,7 @@
 //! Pipeline dịch một tin (bước 2–7; bước 1 chạy ở client). Không đổi thứ tự
 //! các bước khi chưa thảo luận.
 
+use crate::address;
 use crate::hitl::{self, Hitl, TermPair};
 use crate::memory::{MAX_TTL, Memory, Snapshot};
 use crate::risk::{self, Clarification};
@@ -137,6 +138,8 @@ struct Prepared<'a> {
     source: &'a str,
     masked: Masked,
     snapshot: Snapshot,
+    /// Cách xưng hô suy ra từ chính tin này (chỉ tin tiếng Việt).
+    address: address::Cues,
     unaccented_vi: bool,
     high_stakes: bool,
     words: usize,
@@ -314,6 +317,11 @@ impl Translator {
             words: textnorm::words(&req.text).len(),
             masked,
             snapshot,
+            address: if source == "vi" {
+                address::cues(&req.text)
+            } else {
+                address::Cues::default()
+            },
             unaccented_vi,
             thread,
         };
@@ -381,6 +389,10 @@ impl Translator {
             external_forbidden: req.external_forbidden,
             ..Signals::default()
         };
+        // Tín hiệu trong chính tin thắng cách xưng hô đã nhớ của luồng.
+        let (remembered_sender, remembered_reader) = p.snapshot.forms();
+        let sender_form = p.address.sender.or(remembered_sender);
+        let reader_form = p.address.reader.or(remembered_reader);
         loop {
             let nonce = prompts::nonce();
             let model_req = prompts::build(&prompts::Input {
@@ -392,6 +404,10 @@ impl Translator {
                 summary: p.snapshot.summary.as_deref(),
                 context: &p.snapshot.lines,
                 address_forms: &p.snapshot.address_forms,
+                sender: Some(&p.snapshot.sender_label),
+                sender_form,
+                reader_form,
+                entities: &p.masked.entities,
                 unaccented_vi: p.unaccented_vi,
                 message: &p.masked.text,
                 nonce: &nonce,
@@ -611,6 +627,30 @@ mod tests {
         assert!(!streamed.lock().unwrap().contains("three"));
         let tiers: Vec<_> = rec.events().iter().filter_map(|e| e.tier).collect();
         assert_eq!(tiers, ["fast", "strong"]);
+    }
+
+    #[tokio::test]
+    async fn prompt_carries_address_forms_and_token_kinds() {
+        let bodies: Arc<Mutex<Vec<String>>> = Arc::default();
+        let seen = bodies.clone();
+        let (t, _) = translator_with(MockProvider::with_fn(move |_, req| {
+            seen.lock().unwrap().push(req.body.clone());
+            crate::mock::glossary_translate(req)
+        }));
+        let (_, on) = collect();
+        // Khách tự xưng "chị", gọi tư vấn là "em"; nhớ được qua nhiều lượt.
+        let mut first = request("Em ơi, chị muốn hỏi về xe 7 chỗ.", &["en"]);
+        first.sender_id = "customer".into();
+        t.translate(&first, &on).await;
+        let mut reply = request("I'll call you when the car arrives.", &["vi"]);
+        reply.sender_id = "advisor".into();
+        t.translate(&reply, &on).await;
+
+        let bodies = bodies.lock().unwrap();
+        assert!(bodies[0].contains("the sender is \"chị\" (I/me) and the reader is \"em\" (you)"));
+        assert!(bodies[0].contains("Tokens: ⟦E1⟧ = number."));
+        assert!(bodies[1].contains("The message below is from P2."));
+        assert!(bodies[1].contains("the sender is \"em\" (I/me) and the reader is \"chị\" (you)"));
     }
 
     #[tokio::test]

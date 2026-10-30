@@ -20,14 +20,19 @@ The pipeline runs in this order for every message:
    URLs and bare codes. Detect the language, including Vietnamese typed without diacritics and
    mixed Vietnamese–English.
 2. **Context**: the 6–10 most recent messages, a thread summary, how members address each
-   other (anh/chị/em…), and the domain label.
+   other (anh/chị/em…), and the domain label. Vietnamese kinship words mean both "I" and
+   "you", so address forms are inferred from vocatives ("anh ơi…", "…nhé em") and the prompt
+   states who is the sender and who is the reader. They are kept with the same TTL as the
+   messages, even after those messages leave the window.
 3. **Glossary lookup** before calling the model (up to ~20 entries). The model never calls
    tools on the hot path.
 4. **Ambiguity check**: ask the sender privately, only when there are at least two reasonable
    readings *and* it affects a price, date, quantity, address or commitment
    (e.g. "giá 500": 500 thousand or 500 million?).
 5. **Entity masking**: numbers, money, plates, @mentions, product codes, ID and bank numbers,
-   and phone numbers become placeholders (`⟦E1⟧`). The text is then translated with streaming,
+   and phone numbers become placeholders (`⟦E1⟧`); the prompt names each token's type (not its
+   value) so the model still translates the words around it ("Xe ⟦E1⟧ chỗ" → "⟦E1⟧-seat car").
+   The text is then translated with streaming,
    and the entities are restored in the target language's format
    ("5 củ" → "5 million VND", "9h30" → "9:30").
 6. **Post-translation checks**: entities and glossary terms must match. On failure, retry

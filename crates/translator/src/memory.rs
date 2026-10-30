@@ -3,7 +3,10 @@
 //! - Chỉ trong RAM. Mỗi tin hết hạn sau TTL (tối đa 24 giờ).
 //! - Xoá toàn bộ luồng khi phiên đóng hoặc có thành viên rời nhóm.
 //! - Ngữ cảnh đưa ra dùng nhãn giả danh (P1, P2…) và đã che giá trị.
+//! - Cách xưng hô của từng thành viên (suy ra từ tin, xem `address`) có cùng TTL và
+//!   được giữ cả khi tin gốc đã trôi khỏi cửa sổ ngữ cảnh.
 
+use crate::address;
 use prompts::ContextLine;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
@@ -24,7 +27,64 @@ struct Stored {
 struct Thread {
     messages: VecDeque<Stored>,
     summary: Option<(String, Instant)>,
-    address_forms: HashMap<String, String>,
+    /// Thành viên → (cách xưng hô, thời điểm ghi nhận).
+    address_forms: HashMap<String, (String, Instant)>,
+    /// Hô gọi chưa biết gán cho ai (người kia chưa nhắn): (người gọi, cách xưng hô, lúc).
+    pending_reader: Option<(String, String, Instant)>,
+}
+
+impl Thread {
+    fn expire(&mut self, ttl: Duration) {
+        self.messages.retain(|m| m.at.elapsed() <= ttl);
+        if self
+            .summary
+            .as_ref()
+            .is_some_and(|(_, at)| at.elapsed() > ttl)
+        {
+            self.summary = None;
+        }
+        self.address_forms.retain(|_, (_, at)| at.elapsed() <= ttl);
+        if self
+            .pending_reader
+            .as_ref()
+            .is_some_and(|(_, _, at)| at.elapsed() > ttl)
+        {
+            self.pending_reader = None;
+        }
+    }
+
+    /// Thành viên khác duy nhất ngoài `member` trong cửa sổ: `Some(None)` nếu chưa có
+    /// ai, `None` nếu có nhiều hơn một (nhóm).
+    fn only_other(&self, member: &str) -> Option<Option<String>> {
+        let mut other: Option<&str> = None;
+        for m in &self.messages {
+            if m.sender == member {
+                continue;
+            }
+            match other {
+                Some(o) if o != m.sender => return None,
+                _ => other = Some(&m.sender),
+            }
+        }
+        Some(other.map(str::to_owned))
+    }
+
+    /// Người mới nhắn trong chat 1-1 nhận cách xưng hô mà người kia đã hô gọi trước đó.
+    fn resolve_pending(&mut self, member: &str) {
+        let Some((by, form, _)) = &self.pending_reader else {
+            return;
+        };
+        if by != member && self.only_other(member) == Some(Some(by.clone())) {
+            let form = form.clone();
+            self.pending_reader = None;
+            self.set_form(member, &form);
+        }
+    }
+
+    fn set_form(&mut self, member: &str, form: &str) {
+        self.address_forms
+            .insert(member.to_owned(), (form.to_owned(), Instant::now()));
+    }
 }
 
 /// Ngữ cảnh đã sẵn sàng đưa vào prompt.
@@ -35,6 +95,27 @@ pub struct Snapshot {
     pub address_forms: Vec<(String, String)>,
     /// Nhãn giả danh của người gửi tin đang dịch.
     pub sender_label: String,
+}
+
+impl Snapshot {
+    /// (cách xưng hô của người gửi, của người đọc). Người đọc chỉ xác định được khi
+    /// đúng một thành viên khác đã có cách xưng hô (chat 1-1).
+    pub fn forms(&self) -> (Option<&str>, Option<&str>) {
+        let sender = self
+            .address_forms
+            .iter()
+            .find(|(who, _)| *who == self.sender_label)
+            .map(|(_, f)| f.as_str());
+        let mut others = self
+            .address_forms
+            .iter()
+            .filter(|(who, _)| *who != self.sender_label);
+        let reader = match (others.next(), others.next()) {
+            (Some((_, f)), None) => Some(f.as_str()),
+            _ => None,
+        };
+        (sender, reader)
+    }
 }
 
 fn pseudonym(labels: &mut HashMap<String, String>, id: &str) -> String {
@@ -70,10 +151,30 @@ impl Memory {
         Some(f(threads.entry(thread.to_owned()).or_default()))
     }
 
-    /// Ghi nhận một tin (sau khi đã dịch) vào ngữ cảnh của luồng.
+    /// Ghi nhận một tin (sau khi đã dịch) vào ngữ cảnh của luồng, kèm cách xưng hô
+    /// suy ra từ tin tiếng Việt. Người được hô gọi chỉ gán khi luồng có đúng một
+    /// thành viên khác.
     pub fn record(&self, thread: &str, sender: &str, lang: &str, text: &str) {
         let window = self.window;
+        let cues = if lang == "vi" {
+            address::cues(text)
+        } else {
+            address::Cues::default()
+        };
         self.with_thread(thread, |t| {
+            t.resolve_pending(sender);
+            if let Some(f) = cues.sender {
+                t.set_form(sender, f);
+            }
+            if let Some(f) = cues.reader {
+                match t.only_other(sender) {
+                    Some(Some(other)) => t.set_form(&other, f),
+                    Some(None) => {
+                        t.pending_reader = Some((sender.to_owned(), f.to_owned(), Instant::now()));
+                    }
+                    None => {}
+                }
+            }
             t.messages.push_back(Stored {
                 sender: sender.to_owned(),
                 lang: lang.to_owned(),
@@ -94,9 +195,7 @@ impl Memory {
 
     /// Cách xưng hô với một thành viên ("anh", "chị", "em"…).
     pub fn set_address_form(&self, thread: &str, member: &str, form: &str) {
-        self.with_thread(thread, |t| {
-            t.address_forms.insert(member.to_owned(), form.to_owned());
-        });
+        self.with_thread(thread, |t| t.set_form(member, form));
     }
 
     pub fn snapshot(&self, thread: &str, sender: &str) -> Snapshot {
@@ -110,10 +209,8 @@ impl Memory {
                 ..Snapshot::default()
             };
         };
-        t.messages.retain(|m| m.at.elapsed() <= ttl);
-        if t.summary.as_ref().is_some_and(|(_, at)| at.elapsed() > ttl) {
-            t.summary = None;
-        }
+        t.expire(ttl);
+        t.resolve_pending(sender);
         // Đánh nhãn theo thứ tự xuất hiện; người gửi hiện tại luôn có nhãn.
         let mut labels: HashMap<String, String> = HashMap::new();
         let lines = t
@@ -128,7 +225,7 @@ impl Memory {
         let mut address_forms: Vec<(String, String)> = t
             .address_forms
             .iter()
-            .filter_map(|(member, form)| labels.get(member).map(|l| (l.clone(), form.clone())))
+            .filter_map(|(member, (form, _))| labels.get(member).map(|l| (l.clone(), form.clone())))
             .collect();
         address_forms.sort();
         Snapshot {
@@ -160,10 +257,7 @@ impl Memory {
         };
         let before = threads.len();
         threads.retain(|_, t| {
-            t.messages.retain(|m| m.at.elapsed() <= ttl);
-            if t.summary.as_ref().is_some_and(|(_, at)| at.elapsed() > ttl) {
-                t.summary = None;
-            }
+            t.expire(ttl);
             !t.messages.is_empty() || t.summary.is_some()
         });
         before - threads.len()
@@ -201,6 +295,41 @@ mod tests {
         assert!(s.lines.iter().all(|l| !l.speaker.contains("user")));
         assert_eq!(s.sender_label, "P3");
         assert_eq!(s.address_forms, [("P1".to_owned(), "anh".to_owned())]);
+    }
+
+    #[test]
+    fn infers_address_forms_that_outlive_the_window() {
+        let m = Memory::new(MAX_TTL, 6);
+        m.record("t1", "advisor", "en", "Hello, how can I help?");
+        m.record("t1", "customer", "vi", "Em ơi, chị muốn hỏi về xe điện.");
+        for i in 0..8 {
+            let sender = if i % 2 == 0 { "advisor" } else { "customer" };
+            m.record("t1", sender, if i % 2 == 0 { "en" } else { "vi" }, "ok");
+        }
+        let s = m.snapshot("t1", "advisor");
+        assert_eq!(s.lines.len(), 6);
+        assert_eq!(s.forms(), (Some("em"), Some("chị")));
+        let s = m.snapshot("t1", "customer");
+        assert_eq!(s.forms(), (Some("chị"), Some("em")));
+    }
+
+    #[test]
+    fn vocative_is_not_assigned_in_group_threads() {
+        let m = Memory::new(MAX_TTL, 6);
+        m.record("t1", "a", "en", "hi");
+        m.record("t1", "b", "en", "hi");
+        m.record("t1", "c", "vi", "Anh đặt cọc trước nhé em.");
+        let s = m.snapshot("t1", "a");
+        assert_eq!(s.address_forms.len(), 1);
+        assert_eq!(s.forms(), (None, Some("anh")));
+    }
+
+    #[test]
+    fn address_forms_expire_with_ttl() {
+        let m = Memory::new(Duration::ZERO, 6);
+        m.set_address_form("t1", "a", "anh");
+        std::thread::sleep(Duration::from_millis(2));
+        assert!(m.snapshot("t1", "a").address_forms.is_empty());
     }
 
     #[test]
