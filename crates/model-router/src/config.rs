@@ -73,7 +73,7 @@ impl Config {
         toml::from_str(raw).map_err(|e| ConfigError::Parse(e.to_string()))
     }
 
-    pub(crate) fn tiers(&self) -> Result<Vec<(Tier, &TierConfig)>, ConfigError> {
+    pub fn tiers(&self) -> Result<Vec<(Tier, &TierConfig)>, ConfigError> {
         [Tier::Fast, Tier::Strong, Tier::Fallback]
             .into_iter()
             .map(|t| {

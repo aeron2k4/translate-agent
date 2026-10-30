@@ -7,9 +7,13 @@
 
 mod config;
 mod mock;
+#[cfg(feature = "http")]
+pub mod openai_compat;
 
 pub use config::{Config, ConfigError, ProviderConfig, TierConfig};
 pub use mock::MockProvider;
+#[cfg(feature = "http")]
+pub use openai_compat::OpenAiCompat;
 
 use std::collections::HashMap;
 use std::future::Future;

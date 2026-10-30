@@ -18,6 +18,8 @@ regex = "1"
 toml = "0.8"
 axum = "0.8"
 tokio-stream = "0.1"
+# Chỉ rustls, không bật tính năng mặc định (không telemetry, không OpenSSL).
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 tower = { version = "0.5", features = ["util"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 textnorm = { path = "crates/textnorm" }
